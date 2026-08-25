@@ -1,0 +1,49 @@
+filters:
+  and:
+    - file.inFolder("06 Writing")
+    - 'type == "writing-section"'
+properties:
+  file.name:
+    displayName: 章节
+  project:
+    displayName: 项目
+  chapter:
+    displayName: 编号
+  status:
+    displayName: 状态
+  progress:
+    displayName: 进度
+  target_words:
+    displayName: 目标字数
+  current_words:
+    displayName: 当前字数
+  evidence_count:
+    displayName: 证据数
+  evidence_gap:
+    displayName: 存在缺口
+views:
+  - type: table
+    name: 证据不足
+    filters:
+      and:
+        - 'evidence_gap == true'
+    order:
+      - file.name
+      - project
+      - chapter
+      - status
+      - progress
+      - evidence_count
+      - target_words
+      - current_words
+  - type: table
+    name: 全部章节
+    order:
+      - file.name
+      - project
+      - chapter
+      - status
+      - progress
+      - target_words
+      - current_words
+      - evidence_count

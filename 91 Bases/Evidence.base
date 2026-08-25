@@ -1,0 +1,51 @@
+filters:
+  and:
+    - file.inFolder("04 Notes/Evidence")
+    - 'type == "evidence"'
+properties:
+  file.name:
+    displayName: 证据
+  claim:
+    displayName: 命题
+  source:
+    displayName: 来源
+  page:
+    displayName: 页码
+  direction:
+    displayName: 方向
+  strength:
+    displayName: 强度
+  confidence:
+    displayName: 置信度
+  verified:
+    displayName: 已核验
+  research_questions:
+    displayName: 研究问题
+  updated:
+    displayName: 更新日期
+views:
+  - type: table
+    name: 最近证据
+    limit: 20
+    order:
+      - file.name
+      - claim
+      - source
+      - page
+      - direction
+      - strength
+      - verified
+      - research_questions
+      - updated
+  - type: table
+    name: 待核验证据
+    filters:
+      and:
+        - 'verified != true'
+    order:
+      - file.name
+      - source
+      - page
+      - direction
+      - strength
+      - research_questions

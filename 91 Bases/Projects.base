@@ -1,0 +1,38 @@
+filters:
+  and:
+    - file.inFolder("02 Projects")
+    - 'type == "project"'
+properties:
+  file.name:
+    displayName: 项目
+  status:
+    displayName: 状态
+  research_area:
+    displayName: 研究领域
+  deadline:
+    displayName: 截止日期
+  progress:
+    displayName: 进度
+  priority:
+    displayName: 优先级
+views:
+  - type: table
+    name: 活跃项目
+    filters:
+      or:
+        - 'status == "active"'
+        - 'status == "planning"'
+    order:
+      - file.name
+      - status
+      - research_area
+      - deadline
+      - progress
+      - priority
+  - type: table
+    name: 全部项目
+    order:
+      - file.name
+      - status
+      - deadline
+      - progress

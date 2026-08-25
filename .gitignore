@@ -1,0 +1,48 @@
+# Obsidian local state
+.obsidian/*.json
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/logs/
+
+# Keep only the Research OS plugin from local plugin installations
+.obsidian/plugins/*
+!.obsidian/plugins/research-os/
+.obsidian/plugins/research-os/data.json
+.obsidian/plugins/research-os/node_modules/
+.obsidian/plugins/research-os/cache/
+
+# Private research material and imported attachments
+09 Attachments/**
+03 Literature/Papers/**
+04 Notes/**
+05 Research/**
+06 Writing/**
+07 People/**
+08 Logs/**
+02 Projects/**
+01 Inbox/未命名.base
+
+# Documents that may have third-party copyright
+*.pdf
+*.ppt
+*.pptx
+*.doc
+*.docx
+*.canvas
+
+# User-generated themes and credentials
+**/Research OS Themes/**
+/forest.jpg
+*.env
+.env.*
+
+# Local release artifacts
+release/
+node_modules/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

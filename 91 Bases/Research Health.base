@@ -1,0 +1,47 @@
+filters:
+  and:
+    - file.inFolder("03 Literature")
+    - 'type == "literature"'
+properties:
+  file.name:
+    displayName: 文献
+  status:
+    displayName: 状态
+  doi:
+    displayName: DOI
+  pdf:
+    displayName: PDF
+  project:
+    displayName: 项目
+  last_reviewed:
+    displayName: 上次处理
+  reading_progress:
+    displayName: 进度
+views:
+  - type: table
+    name: 缺少必要信息的文献
+    filters:
+      or:
+        - 'title == null'
+        - 'authors == null'
+        - 'year == null'
+        - 'project == null'
+    order:
+      - file.name
+      - status
+      - doi
+      - pdf
+      - project
+  - type: table
+    name: 长期未更新的阅读
+    filters:
+      and:
+        - 'status == "reading"'
+        - 'last_reviewed != null'
+        - 'last_reviewed < today() - "14d"'
+    order:
+      - file.name
+      - status
+      - reading_progress
+      - last_reviewed
+      - project

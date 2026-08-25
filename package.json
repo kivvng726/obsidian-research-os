@@ -1,0 +1,26 @@
+{
+  "name": "obsidian-research-os",
+  "version": "0.3.0",
+  "private": false,
+  "description": "An AI-assisted literature library, reading workspace, research synthesis system, and adaptive visual theme for Obsidian.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kivvng726/obsidian-research-os.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kivvng726/obsidian-research-os/issues"
+  },
+  "homepage": "https://github.com/kivvng726/obsidian-research-os#readme",
+  "license": "MIT",
+  "scripts": {
+    "build": "esbuild .obsidian/plugins/research-os/main.source.js --bundle --platform=node --format=cjs --external:obsidian --outfile=.obsidian/plugins/research-os/main.js",
+    "test": "node .obsidian/plugins/research-os/theme-engine.test.js",
+    "check": "node --check .obsidian/plugins/research-os/main.source.js && node --check .obsidian/plugins/research-os/theme-service.js && node --check .obsidian/plugins/research-os/theme-settings.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

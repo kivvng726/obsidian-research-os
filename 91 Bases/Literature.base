@@ -1,0 +1,57 @@
+filters:
+  and:
+    - file.inFolder("03 Literature")
+    - 'type == "literature"'
+properties:
+  file.name:
+    displayName: 文献
+  authors:
+    displayName: 作者
+  year:
+    displayName: 年份
+  status:
+    displayName: 状态
+  priority:
+    displayName: 优先级
+  relevance:
+    displayName: 相关性
+  quality:
+    displayName: 质量
+  reading_progress:
+    displayName: 阅读进度
+  project:
+    displayName: 项目
+views:
+  - type: table
+    name: 收件箱
+    filters:
+      and:
+        - 'status == "inbox"'
+    order:
+      - file.name
+      - authors
+      - year
+      - date_added
+      - project
+  - type: table
+    name: 待筛选
+    filters:
+      and:
+        - 'status == "to-screen"'
+    order:
+      - file.name
+      - authors
+      - year
+      - relevance
+      - quality
+  - type: table
+    name: 全部文献
+    order:
+      - file.name
+      - authors
+      - year
+      - status
+      - priority
+      - relevance
+      - quality
+      - project

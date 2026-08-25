@@ -1,0 +1,50 @@
+name: Build and release Research OS
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Test and build
+        run: |
+          npm run check
+          npm test
+          npm run build
+
+      - name: Prepare plugin package
+        run: |
+          mkdir -p release/research-os
+          cp .obsidian/plugins/research-os/main.js release/research-os/main.js
+          cp .obsidian/plugins/research-os/manifest.json release/research-os/manifest.json
+          cp .obsidian/plugins/research-os/styles.css release/research-os/styles.css
+          cp .obsidian/plugins/research-os/forest.jpg release/research-os/forest.jpg
+          cp LICENSE release/research-os/LICENSE
+          cp README.md release/research-os/README.md
+          cd release && zip -r research-os.zip research-os
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/research-os.zip
+            .obsidian/plugins/research-os/main.js
+            .obsidian/plugins/research-os/manifest.json
+            .obsidian/plugins/research-os/styles.css
+            .obsidian/plugins/research-os/forest.jpg
+          generate_release_notes: true

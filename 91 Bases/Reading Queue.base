@@ -1,0 +1,56 @@
+filters:
+  and:
+    - file.inFolder("03 Literature")
+    - 'type == "literature"'
+properties:
+  file.name:
+    displayName: 文献
+  status:
+    displayName: 状态
+  priority:
+    displayName: 优先级
+  relevance:
+    displayName: 相关性
+  reading_progress:
+    displayName: 进度
+  last_reviewed:
+    displayName: 上次处理
+  project:
+    displayName: 项目
+views:
+  - type: table
+    name: 正在阅读
+    filters:
+      and:
+        - 'status == "reading"'
+    order:
+      - file.name
+      - reading_progress
+      - priority
+      - relevance
+      - last_reviewed
+      - project
+  - type: table
+    name: 优先阅读
+    filters:
+      and:
+        - 'status == "to-read"'
+        - 'priority >= 4'
+    order:
+      - file.name
+      - priority
+      - relevance
+      - quality
+      - project
+  - type: table
+    name: 已读待加工
+    filters:
+      or:
+        - 'status == "read"'
+        - 'status == "annotated"'
+    order:
+      - file.name
+      - status
+      - relevance
+      - last_reviewed
+      - project

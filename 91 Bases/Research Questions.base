@@ -1,0 +1,43 @@
+filters:
+  and:
+    - file.inFolder("05 Research/Questions")
+    - 'type == "research-question"'
+properties:
+  file.name:
+    displayName: 研究问题
+  project:
+    displayName: 项目
+  status:
+    displayName: 状态
+  importance:
+    displayName: 重要性
+  confidence:
+    displayName: 置信度
+  answerability:
+    displayName: 可回答性
+  updated:
+    displayName: 最近更新
+views:
+  - type: table
+    name: 活跃问题
+    filters:
+      or:
+        - 'status == "exploring"'
+        - 'status == "testing"'
+        - 'status == "challenged"'
+    order:
+      - file.name
+      - project
+      - status
+      - importance
+      - confidence
+      - answerability
+      - updated
+  - type: table
+    name: 全部问题
+    order:
+      - file.name
+      - project
+      - status
+      - importance
+      - confidence
