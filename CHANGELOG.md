@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 - 2026-09-01
+
+- Added configurable AI providers for DeepSeek, OpenAI/GPT, Kimi/Moonshot, OpenRouter, SiliconFlow, and custom OpenAI-compatible endpoints.
+- Added editable Base URL and model name settings for OpenAI-compatible chat completion APIs.
+- Scoped DeepSeek-only thinking parameters to DeepSeek requests so other providers do not reject the request body.
+- Updated AI copy and release documentation to explain supported providers and installation paths.
+
 ## 0.3.0 - 2026-08-25
 
 - Added drag-and-drop PDF import with local text extraction and AI metadata repair.

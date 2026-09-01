@@ -1603,7 +1603,7 @@ var require_research_view = __commonJS({
         intro.createEl("p", { text: `\u5173\u6CE8\uFF1A${this.plugin.ai.settings.interests} \xB7 \u4E0A\u6B21\u66F4\u65B0\uFF1A${last}` });
         if (!this.plugin.ai.isConfigured()) {
           const warning = intro.createDiv("ros-ai-warning");
-          warning.createSpan({ text: "\u5C1A\u672A\u914D\u7F6E DeepSeek API Key\u3002\u53EF\u4EE5\u6293\u53D6\u8BBA\u6587\uFF0C\u4F46\u65E0\u6CD5\u751F\u6210\u4E2A\u6027\u5316\u63A8\u8350\u7406\u7531\u4E0E\u5BFC\u8BFB\u3002" });
+          warning.createSpan({ text: "\u5C1A\u672A\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\u3002\u53EF\u4EE5\u6293\u53D6\u8BBA\u6587\uFF0C\u4F46\u65E0\u6CD5\u751F\u6210\u4E2A\u6027\u5316\u63A8\u8350\u7406\u7531\u4E0E\u5BFC\u8BFB\u3002" });
           const open = warning.createEl("button", { text: "\u6253\u5F00\u8BBE\u7F6E" });
           open.addEventListener("click", () => {
             this.app.setting.open();
@@ -1828,7 +1828,7 @@ var require_research_view = __commonJS({
         group.items.forEach((item) => this.renderLiteratureRow(section, item, false));
       }
       async organizeLibrary(button) {
-        if (!this.plugin.ai.isConfigured()) return new Notice2("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
+        if (!this.plugin.ai.isConfigured()) return new Notice2("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
         let papers = this.plugin.store.byType("literature");
         if (!papers.length) return new Notice2("\u6587\u732E\u5E93\u4E2D\u8FD8\u6CA1\u6709\u8BBA\u6587");
         button.disabled = true;
@@ -2137,7 +2137,7 @@ var require_research_view = __commonJS({
         head.createSpan({ text: insight ? `${insight.extractionLevel === "notes" ? "\u7B14\u8BB0\u589E\u5F3A" : insight.extractionLevel === "abstract" ? "\u6458\u8981\u7EA7" : "\u5143\u6570\u636E\u7EA7"} \xB7 ${insight.generatedAt ? new Date(insight.generatedAt).toLocaleDateString() : "\u5DF2\u751F\u6210"}` : "\u5C1A\u672A\u751F\u6210" });
         if (!insight) {
           const empty = panel.createDiv("ros-insight-empty");
-          empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "\u7CFB\u7EDF\u4F1A\u4F9D\u636E\u8BBA\u6587\u6750\u6599\u56DE\u7B54\u5341\u4E2A\u7814\u7A76\u95EE\u9898\uFF0C\u5E76\u751F\u6210\u53EF\u4FDD\u7559\u7684\u5019\u9009\u8FDB\u5C55\u3002" : "\u914D\u7F6E DeepSeek API Key \u540E\uFF0C\u53EF\u4EE5\u81EA\u52A8\u751F\u6210\u6BCF\u7BC7\u8BBA\u6587\u7684\u5341\u95EE\u63D0\u70BC\u3002" });
+          empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "\u7CFB\u7EDF\u4F1A\u4F9D\u636E\u8BBA\u6587\u6750\u6599\u56DE\u7B54\u5341\u4E2A\u7814\u7A76\u95EE\u9898\uFF0C\u5E76\u751F\u6210\u53EF\u4FDD\u7559\u7684\u5019\u9009\u8FDB\u5C55\u3002" : "\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\u540E\uFF0C\u53EF\u4EE5\u81EA\u52A8\u751F\u6210\u6BCF\u7BC7\u8BBA\u6587\u7684\u5341\u95EE\u63D0\u70BC\u3002" });
           const button = empty.createEl("button", { text: "\u751F\u6210\u5341\u95EE\u63D0\u70BC", cls: "ros-primary-btn" });
           button.disabled = !this.plugin.ai.isConfigured();
           button.addEventListener("click", () => this.generatePaperInsight(paper, button, true));
@@ -2231,8 +2231,8 @@ var require_research_view = __commonJS({
       renderPaperAI(reader, item) {
         const panel = reader.createEl("section", { cls: "ros-simple-card ros-paper-ai" });
         const head = panel.createDiv("ros-section-heading");
-        head.createEl("h2", { text: "DeepSeek \u8BBA\u6587\u52A9\u624B" });
-        head.createSpan({ text: this.plugin.ai.settings.deepseekModel });
+        head.createEl("h2", { text: "AI \u8BBA\u6587\u52A9\u624B" });
+        head.createSpan({ text: this.plugin.ai.model() });
         const guide = panel.createEl("button", { text: "\u91CD\u65B0\u751F\u6210 AI \u5BFC\u8BFB", cls: "ros-secondary-btn" });
         guide.disabled = this.aiBusy;
         guide.addEventListener("click", async () => {
@@ -2910,6 +2910,10 @@ var require_ai_service = __commonJS({
     var DEFAULT_AI_SETTINGS = {
       activeThemeId: "forest-original",
       customTheme: null,
+      aiProvider: "deepseek",
+      aiApiKey: "",
+      aiBaseUrl: "",
+      aiModel: "",
       deepseekApiKey: "",
       deepseekBaseUrl: "https://api.deepseek.com",
       deepseekModel: "deepseek-v4-flash",
@@ -2922,6 +2926,79 @@ var require_ai_service = __commonJS({
       discoveries: [],
       chats: {}
     };
+    var AI_PROVIDERS = {
+      deepseek: {
+        name: "DeepSeek",
+        baseUrl: "https://api.deepseek.com",
+        model: "deepseek-v4-flash",
+        models: {
+          "deepseek-v4-flash": "DeepSeek V4 Flash\uFF08\u63A8\u8350\uFF09",
+          "deepseek-v4-pro": "DeepSeek V4 Pro\uFF08\u6DF1\u5EA6\u7814\u7A76\uFF09",
+          "deepseek-chat": "deepseek-chat",
+          "deepseek-reasoner": "deepseek-reasoner"
+        },
+        supportsThinking: true,
+        supportsJsonMode: true
+      },
+      openai: {
+        name: "OpenAI / GPT",
+        baseUrl: "https://api.openai.com/v1",
+        model: "gpt-5.2",
+        models: {
+          "gpt-5.2": "GPT-5.2\uFF08\u63A8\u8350\uFF09",
+          "gpt-4o-mini": "GPT-4o mini",
+          "gpt-4o": "GPT-4o",
+          "gpt-4.1-mini": "GPT-4.1 mini",
+          "gpt-4.1": "GPT-4.1"
+        },
+        supportsJsonMode: true
+      },
+      kimi: {
+        name: "Kimi / Moonshot",
+        baseUrl: "https://api.moonshot.ai/v1",
+        model: "kimi-k2.6",
+        models: {
+          "kimi-k2.6": "kimi-k2.6\uFF08\u63A8\u8350\uFF09",
+          "kimi-k3": "kimi-k3",
+          "moonshot-v1-8k": "moonshot-v1-8k",
+          "moonshot-v1-32k": "moonshot-v1-32k",
+          "moonshot-v1-128k": "moonshot-v1-128k"
+        },
+        supportsJsonMode: true
+      },
+      openrouter: {
+        name: "OpenRouter",
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: "~openai/gpt-latest",
+        models: {
+          "~openai/gpt-latest": "~openai/gpt-latest\uFF08\u63A8\u8350\uFF09",
+          "openai/gpt-4o-mini": "openai/gpt-4o-mini",
+          "anthropic/claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
+          "google/gemini-flash-1.5": "google/gemini-flash-1.5",
+          "deepseek/deepseek-chat": "deepseek/deepseek-chat"
+        },
+        supportsJsonMode: true
+      },
+      siliconflow: {
+        name: "\u7845\u57FA\u6D41\u52A8 SiliconFlow",
+        baseUrl: "https://api.siliconflow.cn/v1",
+        model: "deepseek-ai/DeepSeek-V3.2",
+        models: {
+          "deepseek-ai/DeepSeek-V3.2": "DeepSeek-V3.2\uFF08\u63A8\u8350\uFF09",
+          "deepseek-ai/DeepSeek-R1": "DeepSeek-R1",
+          "Qwen/Qwen3.6-27B": "Qwen3.6-27B",
+          "Qwen/Qwen2.5-72B-Instruct": "Qwen2.5-72B-Instruct"
+        },
+        supportsJsonMode: true
+      },
+      custom: {
+        name: "\u81EA\u5B9A\u4E49 OpenAI \u517C\u5BB9\u63A5\u53E3",
+        baseUrl: "",
+        model: "",
+        models: {},
+        supportsJsonMode: true
+      }
+    };
     var AIService2 = class {
       constructor(plugin) {
         this.plugin = plugin;
@@ -2931,36 +3008,60 @@ var require_ai_service = __commonJS({
       }
       async load() {
         this.settings = { ...DEFAULT_AI_SETTINGS, ...await this.plugin.loadData() || {} };
+        if (!this.settings.aiApiKey && this.settings.deepseekApiKey) this.settings.aiApiKey = this.settings.deepseekApiKey;
+        if (!this.settings.aiBaseUrl && this.settings.deepseekBaseUrl) this.settings.aiBaseUrl = this.settings.deepseekBaseUrl;
+        if (!this.settings.aiModel && this.settings.deepseekModel) this.settings.aiModel = this.settings.deepseekModel;
       }
       async save() {
         await this.plugin.saveData(this.settings);
       }
+      provider() {
+        return AI_PROVIDERS[this.settings.aiProvider] || AI_PROVIDERS.deepseek;
+      }
+      providerName() {
+        return this.provider().name;
+      }
+      baseUrl() {
+        return (this.settings.aiBaseUrl || this.provider().baseUrl || "").replace(/\/$/, "");
+      }
+      model() {
+        return this.settings.aiModel || this.provider().model;
+      }
       isConfigured() {
-        return Boolean(this.settings.deepseekApiKey.trim());
+        return Boolean(this.settings.aiApiKey.trim() && this.baseUrl() && this.model());
+      }
+      async setProvider(providerId) {
+        const provider = AI_PROVIDERS[providerId] || AI_PROVIDERS.deepseek;
+        this.settings.aiProvider = providerId in AI_PROVIDERS ? providerId : "deepseek";
+        this.settings.aiBaseUrl = provider.baseUrl;
+        this.settings.aiModel = provider.model;
+        await this.save();
       }
       async chat(messages, options = {}) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199 DeepSeek API Key");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199\u6A21\u578B\u670D\u52A1\u3001API Key\u3001Base URL \u548C\u6A21\u578B\u540D");
+        const provider = this.provider();
+        const body = {
+          model: this.model(),
+          messages,
+          stream: false,
+          temperature: options.temperature ?? 0.3,
+          max_tokens: options.maxTokens ?? 2600
+        };
+        if (provider.supportsThinking) body.thinking = { type: options.thinking ? "enabled" : "disabled" };
+        if (options.json && provider.supportsJsonMode !== false) body.response_format = { type: "json_object" };
         const response = await requestUrl({
-          url: `${this.settings.deepseekBaseUrl.replace(/\/$/, "")}/chat/completions`,
+          url: `${this.baseUrl()}/chat/completions`,
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.settings.deepseekApiKey.trim()}`
+            Authorization: `Bearer ${this.settings.aiApiKey.trim()}`
           },
-          body: JSON.stringify({
-            model: this.settings.deepseekModel,
-            messages,
-            stream: false,
-            thinking: { type: options.thinking ? "enabled" : "disabled" },
-            temperature: options.temperature ?? 0.3,
-            max_tokens: options.maxTokens ?? 2600,
-            ...options.json ? { response_format: { type: "json_object" } } : {}
-          }),
+          body: JSON.stringify(body),
           throw: false
         });
         if (response.status < 200 || response.status >= 300) {
           const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
-          throw new Error(`DeepSeek \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
+          throw new Error(`${this.providerName()} \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
         }
         return response.json?.choices?.[0]?.message?.content || "";
       }
@@ -3031,7 +3132,7 @@ var require_ai_service = __commonJS({
         try {
           parsed = JSON.parse(content);
         } catch {
-          throw new Error("DeepSeek \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
+          throw new Error("AI \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
         }
         const byId = new Map((parsed.papers || []).map((x) => [x.id, x]));
         return papers.map((p) => ({ ...p, ...byId.get(p.id) || { score: 30, reason: "\u4E0E\u5173\u6CE8\u5173\u952E\u8BCD\u5339\u914D", readingMode: "\u901F\u8BFB" } }));
@@ -3080,7 +3181,7 @@ var require_ai_service = __commonJS({
 
 ## AI \u5BFC\u8BFB
 
-> \u751F\u6210\u4F9D\u636E\uFF1A\u6807\u9898\u4E0E\u6458\u8981\uFF1B\u6A21\u578B\uFF1A${this.settings.deepseekModel}\uFF1B\u65F6\u95F4\uFF1A${(/* @__PURE__ */ new Date()).toLocaleString()}
+> \u751F\u6210\u4F9D\u636E\uFF1A\u6807\u9898\u4E0E\u6458\u8981\uFF1B\u6A21\u578B\uFF1A${this.model()}\uFF1B\u65F6\u95F4\uFF1A${(/* @__PURE__ */ new Date()).toLocaleString()}
 
 ${guide}
 `;
@@ -3183,7 +3284,7 @@ ${pdfText}`;
         return windows.join("\n\n[\u2026\u8282\u9009\u2026]\n\n").slice(0, 72e3);
       }
       async ensurePaperInsight(paper, force = false) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key\uFF0C\u518D\u751F\u6210\u8BBA\u6587\u63D0\u70BC");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\uFF0C\u518D\u751F\u6210\u8BBA\u6587\u63D0\u70BC");
         if (this.insightJobs.has(paper.path)) return this.insightJobs.get(paper.path);
         const job = (async () => {
           await this.plugin.store.load();
@@ -3214,7 +3315,7 @@ JSON \u683C\u5F0F\uFF1A{"answers":{"q1":string,"q2":string,"q3":string,"q4":stri
 
 ${context.material}` }
           ], { json: true, thinking: true, maxTokens: 5200 });
-          const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
+          const parsed = this.parseJsonResponse(response, "AI \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
           if (!parsed.answers || typeof parsed.answers !== "object") throw new Error("\u8BBA\u6587\u63D0\u70BC\u7F3A\u5C11\u5341\u95EE\u7B54\u6848");
           return this.plugin.store.savePaperInsight(paper, {
             answers: parsed.answers,
@@ -3224,7 +3325,7 @@ ${context.material}` }
             extractionLabel: context.extractionLabel,
             contentHash: context.contentHash,
             promptVersion: "paper-insight-v2",
-            model: this.settings.deepseekModel
+            model: this.model()
           });
         })().finally(() => this.insightJobs.delete(paper.path));
         this.insightJobs.set(paper.path, job);
@@ -3285,7 +3386,7 @@ ${context.material}` }
         })).filter((candidate) => candidate.title && candidate.summary);
       }
       async synthesizeResearchProgress(papers, goal = "") {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
         if (!Array.isArray(papers) || papers.length < 2) throw new Error("\u8BF7\u81F3\u5C11\u9009\u62E9\u4E24\u7BC7\u8BBA\u6587");
         const selected = papers.slice(0, 12);
         const materials = [];
@@ -3326,7 +3427,7 @@ ${materials.map((paper, index) => `[P${index + 1}] ${paper.path} \u2014 ${paper.
 ${JSON.stringify(materials)}`
           }
         ], { json: true, thinking: true, maxTokens: 5200 });
-        const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790");
+        const parsed = this.parseJsonResponse(response, "AI \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790");
         if (!parsed.sections?.conclusion) throw new Error("AI \u7EFC\u5408\u7ED3\u679C\u7F3A\u5C11\u5F53\u524D\u7ED3\u8BBA");
         const validPaths = new Set(selected.map((paper) => paper.path));
         parsed.evidence = (parsed.evidence || []).map((item) => ({
@@ -3338,7 +3439,7 @@ ${JSON.stringify(materials)}`
         return parsed;
       }
       async repairPaperMetadata(paper) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
         let pdf;
         try {
           pdf = await this.plugin.store.extractPdfEvidence(paper, 8);
@@ -3368,7 +3469,7 @@ ${currentNote.slice(0, 8e3)}` }
         };
       }
       async organizeLibraryTaxonomy() {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
         await this.plugin.store.load();
         const papers = this.plugin.store.byType("literature");
         if (!papers.length) return [];
@@ -3492,24 +3593,39 @@ ${excerpt}`);
         containerEl.empty();
         containerEl.createEl("h1", { text: "Research OS \u8BBE\u7F6E" });
         renderThemeSettings(containerEl, this.plugin, () => this.display());
-        containerEl.createEl("h2", { text: "DeepSeek AI" });
-        containerEl.createEl("p", { text: "API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
-        new Setting(containerEl).setName("DeepSeek API Key").setDesc("\u5728 DeepSeek \u5F00\u653E\u5E73\u53F0\u521B\u5EFA").addText((text) => {
+        containerEl.createEl("h2", { text: "AI \u6A21\u578B\u670D\u52A1" });
+        containerEl.createEl("p", { text: "\u652F\u6301 DeepSeek\u3001OpenAI/GPT\u3001Kimi/Moonshot\u3001OpenRouter\u3001\u7845\u57FA\u6D41\u52A8\uFF0C\u4EE5\u53CA\u5176\u4ED6 OpenAI \u517C\u5BB9\u63A5\u53E3\u3002API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
+        new Setting(containerEl).setName("\u6A21\u578B\u670D\u52A1").setDesc("\u5207\u6362\u540E\u4F1A\u81EA\u52A8\u586B\u5165\u8BE5\u670D\u52A1\u7684\u9ED8\u8BA4 Base URL \u548C\u6A21\u578B\u540D").addDropdown((dropdown) => dropdown.addOptions(Object.fromEntries(Object.entries(AI_PROVIDERS).map(([id, provider]) => [id, provider.name]))).setValue(this.plugin.ai.settings.aiProvider).onChange(async (value) => {
+          await this.plugin.ai.setProvider(value);
+          this.display();
+        }));
+        new Setting(containerEl).setName("API Key").setDesc(`\u586B\u5199 ${this.plugin.ai.providerName()} \u7684 API Key`).addText((text) => {
           text.inputEl.type = "password";
-          text.setPlaceholder("sk-...").setValue(this.plugin.ai.settings.deepseekApiKey).onChange(async (value) => {
-            this.plugin.ai.settings.deepseekApiKey = value.trim();
+          text.setPlaceholder("sk-...").setValue(this.plugin.ai.settings.aiApiKey).onChange(async (value) => {
+            this.plugin.ai.settings.aiApiKey = value.trim();
             await this.plugin.ai.save();
           });
         });
-        new Setting(containerEl).setName("\u6A21\u578B").addDropdown((dropdown) => dropdown.addOptions({ "deepseek-v4-flash": "DeepSeek V4 Flash\uFF08\u63A8\u8350\uFF09", "deepseek-v4-pro": "DeepSeek V4 Pro\uFF08\u6DF1\u5EA6\u7814\u7A76\uFF09" }).setValue(this.plugin.ai.settings.deepseekModel).onChange(async (value) => {
-          this.plugin.ai.settings.deepseekModel = value;
+        new Setting(containerEl).setName("Base URL").setDesc("\u5FC5\u987B\u662F OpenAI-compatible \u63A5\u53E3\u5730\u5740\uFF0C\u4E0D\u8981\u5305\u542B /chat/completions").addText((text) => text.setPlaceholder("https://api.example.com/v1").setValue(this.plugin.ai.baseUrl()).onChange(async (value) => {
+          this.plugin.ai.settings.aiBaseUrl = value.trim();
+          await this.plugin.ai.save();
+        }));
+        const providerModels = this.plugin.ai.provider().models || {};
+        if (Object.keys(providerModels).length) {
+          new Setting(containerEl).setName("\u6A21\u578B").addDropdown((dropdown) => dropdown.addOptions(providerModels).setValue(this.plugin.ai.model()).onChange(async (value) => {
+            this.plugin.ai.settings.aiModel = value;
+            await this.plugin.ai.save();
+          }));
+        }
+        new Setting(containerEl).setName("\u81EA\u5B9A\u4E49\u6A21\u578B\u540D").setDesc("\u5982\u679C\u4E0B\u62C9\u91CC\u6CA1\u6709\u4F60\u7684\u6A21\u578B\uFF0C\u5728\u8FD9\u91CC\u586B\u5199\u4F1A\u8986\u76D6\u4E0A\u9762\u7684\u9009\u62E9").addText((text) => text.setPlaceholder("model-name").setValue(this.plugin.ai.settings.aiModel).onChange(async (value) => {
+          this.plugin.ai.settings.aiModel = value.trim();
           await this.plugin.ai.save();
         }));
         new Setting(containerEl).setName("\u6D4B\u8BD5\u8FDE\u63A5").addButton((button) => button.setButtonText("\u6D4B\u8BD5").onClick(async () => {
           button.setDisabled(true);
           try {
             await this.plugin.ai.testConnection();
-            new Notice2("DeepSeek \u8FDE\u63A5\u6210\u529F");
+            new Notice2(`${this.plugin.ai.providerName()} \u8FDE\u63A5\u6210\u529F`);
           } catch (e) {
             new Notice2(e.message, 8e3);
           } finally {

@@ -144,7 +144,7 @@ class ResearchView extends ItemView {
     intro.createEl("p", { text: `关注：${this.plugin.ai.settings.interests} · 上次更新：${last}` });
     if (!this.plugin.ai.isConfigured()) {
       const warning = intro.createDiv("ros-ai-warning");
-      warning.createSpan({ text: "尚未配置 DeepSeek API Key。可以抓取论文，但无法生成个性化推荐理由与导读。" });
+      warning.createSpan({ text: "尚未配置 AI 模型服务。可以抓取论文，但无法生成个性化推荐理由与导读。" });
       const open = warning.createEl("button", { text: "打开设置" }); open.addEventListener("click", () => { this.app.setting.open(); this.app.setting.openTabById(this.plugin.manifest.id); });
     }
     const papers = (this.plugin.ai.settings.discoveries || []).filter(x => x.state !== "dismissed");
@@ -334,7 +334,7 @@ class ResearchView extends ItemView {
   }
 
   async organizeLibrary(button) {
-    if (!this.plugin.ai.isConfigured()) return new Notice("请先配置 DeepSeek API Key");
+    if (!this.plugin.ai.isConfigured()) return new Notice("请先配置 AI 模型服务");
     let papers = this.plugin.store.byType("literature");
     if (!papers.length) return new Notice("文献库中还没有论文");
     button.disabled = true;
@@ -630,7 +630,7 @@ class ResearchView extends ItemView {
     head.createSpan({ text: insight ? `${insight.extractionLevel === "notes" ? "笔记增强" : insight.extractionLevel === "abstract" ? "摘要级" : "元数据级"} · ${insight.generatedAt ? new Date(insight.generatedAt).toLocaleDateString() : "已生成"}` : "尚未生成" });
     if (!insight) {
       const empty = panel.createDiv("ros-insight-empty");
-      empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "系统会依据论文材料回答十个研究问题，并生成可保留的候选进展。" : "配置 DeepSeek API Key 后，可以自动生成每篇论文的十问提炼。" });
+      empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "系统会依据论文材料回答十个研究问题，并生成可保留的候选进展。" : "配置 AI 模型服务后，可以自动生成每篇论文的十问提炼。" });
       const button = empty.createEl("button", { text: "生成十问提炼", cls: "ros-primary-btn" });
       button.disabled = !this.plugin.ai.isConfigured();
       button.addEventListener("click", () => this.generatePaperInsight(paper, button, true));
@@ -718,7 +718,7 @@ class ResearchView extends ItemView {
 
   renderPaperAI(reader, item) {
     const panel = reader.createEl("section", { cls: "ros-simple-card ros-paper-ai" });
-    const head = panel.createDiv("ros-section-heading"); head.createEl("h2", { text: "DeepSeek 论文助手" }); head.createSpan({ text: this.plugin.ai.settings.deepseekModel });
+    const head = panel.createDiv("ros-section-heading"); head.createEl("h2", { text: "AI 论文助手" }); head.createSpan({ text: this.plugin.ai.model() });
     const guide = panel.createEl("button", { text: "重新生成 AI 导读", cls: "ros-secondary-btn" });
     guide.disabled = this.aiBusy;
     guide.addEventListener("click", async () => {
