@@ -2,7 +2,7 @@
 
 Research OS 是一套运行在 Obsidian 内的个人论文研究工作台。它保留 Obsidian 原生文件、链接与编辑能力，在此基础上把论文导入、阅读材料、AI 分析、跨论文综合和视觉皮肤集中到一个更直观的界面中。
 
-> 当前为 `0.4.0` 开源预览版。请先在测试 Vault 中使用，并自行备份重要资料。
+> 当前为 `0.4.1` 开源预览版。请先在测试 Vault 中使用，并自行备份重要资料。
 
 ## 核心功能
 
@@ -77,16 +77,18 @@ npm run build
 
 在 `设置 → Research OS → AI 模型服务` 中选择服务商并填写自己的 API Key。AI 功能是可选的；未配置时仍可使用本地文献、阅读队列、笔记和主题功能。
 
-当前内置以下 OpenAI-compatible Chat Completions 服务：
+当前内置以下模型服务：
 
 - DeepSeek：`https://api.deepseek.com`
 - OpenAI / GPT：`https://api.openai.com/v1`
 - Kimi / Moonshot：`https://api.moonshot.ai/v1`
 - OpenRouter：`https://openrouter.ai/api/v1`
 - 硅基流动 SiliconFlow：`https://api.siliconflow.cn/v1`
+- 智谱 AI / GLM：`https://open.bigmodel.cn/api/paas/v4`
+- Anthropic Claude：`https://api.anthropic.com`
 - 自定义 OpenAI 兼容接口：手动填写 Base URL 和模型名
 
-其他服务如果支持 `/chat/completions`、Bearer API Key、`messages` 请求格式，并返回 `choices[0].message.content`，也可以通过“自定义 OpenAI 兼容接口”填写 Base URL 和模型名使用。不保证所有模型都兼容 JSON 输出、上下文长度和服务商私有参数。
+DeepSeek、OpenAI/GPT、Kimi、OpenRouter、硅基流动和智谱 GLM 走 OpenAI-compatible Chat Completions。Claude 走 Anthropic Messages API。其他服务如果支持 `/chat/completions`、Bearer API Key、`messages` 请求格式，并返回 `choices[0].message.content`，也可以通过“自定义 OpenAI 兼容接口”填写 Base URL 和模型名使用。不保证所有模型都兼容 JSON 输出、上下文长度和服务商私有参数。
 
 分析优先使用摘要、用户笔记、PDF 高亮和相关正文片段，再按需要补充 PDF 正文，以降低费用并保留用户自己的理解。调用 AI 模型可能产生费用，请以服务商的实际价格与条款为准。
 

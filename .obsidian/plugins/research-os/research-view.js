@@ -24,6 +24,7 @@ class ResearchView extends ItemView {
     this.selectedPath = null;
     this.aiBusy = false;
     this.paperGraph = null;
+    this.searchTimer = null;
     this.progressFilter = "all";
     this.progressSuggestions = [];
     this.libraryTopic = "all";
@@ -41,6 +42,7 @@ class ResearchView extends ItemView {
   }
 
   async onClose() {
+    clearTimeout(this.searchTimer);
     if (this.paperGraph) { this.paperGraph.destroy(); this.paperGraph = null; }
   }
 
@@ -120,7 +122,11 @@ class ResearchView extends ItemView {
     const searchIcon = searchWrap.createSpan(); setIcon(searchIcon, "search");
     const search = searchWrap.createEl("input", { attr: { type: "search", placeholder: "搜索标题、作者或分类…", "aria-label": "搜索文献" } });
     search.value = this.query;
-    search.addEventListener("input", e => { this.query = e.target.value; this.render(); });
+    search.addEventListener("input", e => {
+      this.query = e.target.value;
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => this.render(), 150);
+    });
     const capture = tools.createEl("button", { cls: "ros-primary-btn" });
     const plus = capture.createSpan(); setIcon(plus, this.section === "discover" ? "refresh-cw" : this.section === "progress" ? "sprout" : "plus");
     capture.createSpan({ text: this.section === "discover" ? "立即发现" : this.section === "progress" ? "选择论文生成进展" : "手动添加" });

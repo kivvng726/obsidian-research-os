@@ -86,6 +86,33 @@ const AI_PROVIDERS = {
     },
     supportsJsonMode: true
   },
+  zhipu: {
+    name: "智谱 AI / GLM",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    model: "glm-5.2",
+    models: {
+      "glm-5.2": "GLM-5.2（推荐）",
+      "glm-5.1": "GLM-5.1",
+      "glm-4.7": "GLM-4.7",
+      "glm-4.5": "GLM-4.5"
+    },
+    supportsJsonMode: true,
+    supportsThinking: true
+  },
+  anthropic: {
+    name: "Anthropic Claude",
+    baseUrl: "https://api.anthropic.com",
+    model: "claude-sonnet-5",
+    models: {
+      "claude-sonnet-5": "Claude Sonnet 5（推荐）",
+      "claude-opus-5": "Claude Opus 5",
+      "claude-opus-4-8": "Claude Opus 4.8",
+      "claude-sonnet-4-6": "Claude Sonnet 4.6",
+      "claude-haiku-4-5-20251001": "Claude Haiku 4.5"
+    },
+    apiType: "anthropic",
+    supportsJsonMode: false
+  },
   custom: {
     name: "自定义 OpenAI 兼容接口",
     baseUrl: "",
@@ -127,6 +154,7 @@ class AIService {
   async chat(messages, options = {}) {
     if (!this.isConfigured()) throw new Error("请先在设置 → Research OS AI 中填写模型服务、API Key、Base URL 和模型名");
     const provider = this.provider();
+    if (provider.apiType === "anthropic") return this.chatAnthropic(messages, options);
     const body = {
       model: this.model(),
       messages,
@@ -151,6 +179,36 @@ class AIService {
       throw new Error(`${this.providerName()} 请求失败：${message}`);
     }
     return response.json?.choices?.[0]?.message?.content || "";
+  }
+
+  async chatAnthropic(messages, options = {}) {
+    const system = messages.filter(message => message.role === "system").map(message => message.content).join("\n\n");
+    const conversation = messages.filter(message => message.role !== "system").map(message => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: String(message.content || "")
+    }));
+    const body = {
+      model: this.model(),
+      max_tokens: options.maxTokens ?? 2600,
+      messages: conversation.length ? conversation : [{ role: "user", content: "连接测试" }],
+      ...(system ? { system } : {})
+    };
+    const response = await requestUrl({
+      url: `${this.baseUrl()}/v1/messages`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.settings.aiApiKey.trim(),
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify(body),
+      throw: false
+    });
+    if (response.status < 200 || response.status >= 300) {
+      const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
+      throw new Error(`${this.providerName()} 请求失败：${message}`);
+    }
+    return (response.json?.content || []).map(part => part?.text || "").join("").trim();
   }
 
   async testConnection() {
@@ -610,7 +668,7 @@ class ResearchAISettingTab extends PluginSettingTab {
     containerEl.createEl("h1", { text: "Research OS 设置" });
     renderThemeSettings(containerEl, this.plugin, () => this.display());
     containerEl.createEl("h2", { text: "AI 模型服务" });
-    containerEl.createEl("p", { text: "支持 DeepSeek、OpenAI/GPT、Kimi/Moonshot、OpenRouter、硅基流动，以及其他 OpenAI 兼容接口。API Key 仅保存在本机插件 data.json，不写入文献笔记。" });
+    containerEl.createEl("p", { text: "支持 DeepSeek、OpenAI/GPT、Kimi/Moonshot、OpenRouter、硅基流动、智谱 GLM、Anthropic Claude，以及其他 OpenAI 兼容接口。API Key 仅保存在本机插件 data.json，不写入文献笔记。" });
     new Setting(containerEl).setName("模型服务").setDesc("切换后会自动填入该服务的默认 Base URL 和模型名").addDropdown(dropdown => dropdown
       .addOptions(Object.fromEntries(Object.entries(AI_PROVIDERS).map(([id, provider]) => [id, provider.name])))
       .setValue(this.plugin.ai.settings.aiProvider).onChange(async value => {

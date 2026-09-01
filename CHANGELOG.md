@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 - 2026-09-01
+
+- Added built-in provider settings for 智谱 AI / GLM.
+- Added native Anthropic Claude API support through the Messages API.
+- Fixed the global search box losing input focus after the first character.
+- Updated AI provider documentation for GLM and Claude.
+
 ## 0.4.0 - 2026-09-01
 
 - Added configurable AI providers for DeepSeek, OpenAI/GPT, Kimi/Moonshot, OpenRouter, SiliconFlow, and custom OpenAI-compatible endpoints.

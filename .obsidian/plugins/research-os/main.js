@@ -1467,6 +1467,7 @@ var require_research_view = __commonJS({
         this.selectedPath = null;
         this.aiBusy = false;
         this.paperGraph = null;
+        this.searchTimer = null;
         this.progressFilter = "all";
         this.progressSuggestions = [];
         this.libraryTopic = "all";
@@ -1487,6 +1488,7 @@ var require_research_view = __commonJS({
         this.render();
       }
       async onClose() {
+        clearTimeout(this.searchTimer);
         if (this.paperGraph) {
           this.paperGraph.destroy();
           this.paperGraph = null;
@@ -1572,7 +1574,8 @@ var require_research_view = __commonJS({
         search.value = this.query;
         search.addEventListener("input", (e) => {
           this.query = e.target.value;
-          this.render();
+          clearTimeout(this.searchTimer);
+          this.searchTimer = setTimeout(() => this.render(), 150);
         });
         const capture = tools.createEl("button", { cls: "ros-primary-btn" });
         const plus = capture.createSpan();
@@ -2991,6 +2994,33 @@ var require_ai_service = __commonJS({
         },
         supportsJsonMode: true
       },
+      zhipu: {
+        name: "\u667A\u8C31 AI / GLM",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+        model: "glm-5.2",
+        models: {
+          "glm-5.2": "GLM-5.2\uFF08\u63A8\u8350\uFF09",
+          "glm-5.1": "GLM-5.1",
+          "glm-4.7": "GLM-4.7",
+          "glm-4.5": "GLM-4.5"
+        },
+        supportsJsonMode: true,
+        supportsThinking: true
+      },
+      anthropic: {
+        name: "Anthropic Claude",
+        baseUrl: "https://api.anthropic.com",
+        model: "claude-sonnet-5",
+        models: {
+          "claude-sonnet-5": "Claude Sonnet 5\uFF08\u63A8\u8350\uFF09",
+          "claude-opus-5": "Claude Opus 5",
+          "claude-opus-4-8": "Claude Opus 4.8",
+          "claude-sonnet-4-6": "Claude Sonnet 4.6",
+          "claude-haiku-4-5-20251001": "Claude Haiku 4.5"
+        },
+        apiType: "anthropic",
+        supportsJsonMode: false
+      },
       custom: {
         name: "\u81EA\u5B9A\u4E49 OpenAI \u517C\u5BB9\u63A5\u53E3",
         baseUrl: "",
@@ -3040,6 +3070,7 @@ var require_ai_service = __commonJS({
       async chat(messages, options = {}) {
         if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199\u6A21\u578B\u670D\u52A1\u3001API Key\u3001Base URL \u548C\u6A21\u578B\u540D");
         const provider = this.provider();
+        if (provider.apiType === "anthropic") return this.chatAnthropic(messages, options);
         const body = {
           model: this.model(),
           messages,
@@ -3064,6 +3095,35 @@ var require_ai_service = __commonJS({
           throw new Error(`${this.providerName()} \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
         }
         return response.json?.choices?.[0]?.message?.content || "";
+      }
+      async chatAnthropic(messages, options = {}) {
+        const system = messages.filter((message) => message.role === "system").map((message) => message.content).join("\n\n");
+        const conversation = messages.filter((message) => message.role !== "system").map((message) => ({
+          role: message.role === "assistant" ? "assistant" : "user",
+          content: String(message.content || "")
+        }));
+        const body = {
+          model: this.model(),
+          max_tokens: options.maxTokens ?? 2600,
+          messages: conversation.length ? conversation : [{ role: "user", content: "\u8FDE\u63A5\u6D4B\u8BD5" }],
+          ...system ? { system } : {}
+        };
+        const response = await requestUrl({
+          url: `${this.baseUrl()}/v1/messages`,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.settings.aiApiKey.trim(),
+            "anthropic-version": "2023-06-01"
+          },
+          body: JSON.stringify(body),
+          throw: false
+        });
+        if (response.status < 200 || response.status >= 300) {
+          const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
+          throw new Error(`${this.providerName()} \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
+        }
+        return (response.json?.content || []).map((part) => part?.text || "").join("").trim();
       }
       async testConnection() {
         const text = await this.chat([
@@ -3594,7 +3654,7 @@ ${excerpt}`);
         containerEl.createEl("h1", { text: "Research OS \u8BBE\u7F6E" });
         renderThemeSettings(containerEl, this.plugin, () => this.display());
         containerEl.createEl("h2", { text: "AI \u6A21\u578B\u670D\u52A1" });
-        containerEl.createEl("p", { text: "\u652F\u6301 DeepSeek\u3001OpenAI/GPT\u3001Kimi/Moonshot\u3001OpenRouter\u3001\u7845\u57FA\u6D41\u52A8\uFF0C\u4EE5\u53CA\u5176\u4ED6 OpenAI \u517C\u5BB9\u63A5\u53E3\u3002API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
+        containerEl.createEl("p", { text: "\u652F\u6301 DeepSeek\u3001OpenAI/GPT\u3001Kimi/Moonshot\u3001OpenRouter\u3001\u7845\u57FA\u6D41\u52A8\u3001\u667A\u8C31 GLM\u3001Anthropic Claude\uFF0C\u4EE5\u53CA\u5176\u4ED6 OpenAI \u517C\u5BB9\u63A5\u53E3\u3002API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
         new Setting(containerEl).setName("\u6A21\u578B\u670D\u52A1").setDesc("\u5207\u6362\u540E\u4F1A\u81EA\u52A8\u586B\u5165\u8BE5\u670D\u52A1\u7684\u9ED8\u8BA4 Base URL \u548C\u6A21\u578B\u540D").addDropdown((dropdown) => dropdown.addOptions(Object.fromEntries(Object.entries(AI_PROVIDERS).map(([id, provider]) => [id, provider.name]))).setValue(this.plugin.ai.settings.aiProvider).onChange(async (value) => {
           await this.plugin.ai.setProvider(value);
           this.display();
