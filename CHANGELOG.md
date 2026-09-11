@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 - 2026-09-11
+
+- Fixed custom backgrounds not being persisted after selecting them, so the selected theme now survives an Obsidian restart.
+
 ## 0.4.1 - 2026-09-01
 
 - Added built-in provider settings for 智谱 AI / GLM.

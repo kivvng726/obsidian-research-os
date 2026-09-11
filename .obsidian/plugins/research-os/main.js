@@ -2641,6 +2641,9 @@ var require_theme_service = __commonJS({
         } else {
           this.previewTheme = await this.analyzePath(path, { ...current?.controls || DEFAULT_CONTROLS, locked: false });
         }
+        this.plugin.ai.settings.customTheme = this.previewTheme;
+        this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
+        await this.plugin.ai.save();
         this.plugin.refreshViews();
         return this.previewTheme;
       }

@@ -74,6 +74,11 @@ class ThemeService {
     } else {
       this.previewTheme = await this.analyzePath(path, { ...(current?.controls || DEFAULT_CONTROLS), locked: false });
     }
+    // Persist the selected background immediately so it survives an Obsidian restart.
+    // Further control adjustments remain a preview until the user clicks Apply.
+    this.plugin.ai.settings.customTheme = this.previewTheme;
+    this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
+    await this.plugin.ai.save();
     this.plugin.refreshViews();
     return this.previewTheme;
   }
