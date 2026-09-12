@@ -107,8 +107,17 @@ var require_research_store = __commonJS({
       cleanLink(value) {
         return String(value || "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0];
       }
+      normalizeVaultPath(value) {
+        let path = this.cleanLink(value).replace(/^file:\/\//i, "").replace(/\\/g, "/");
+        if (/^[A-Za-z]:\//.test(path)) {
+          const markers = ["03 Literature/", "04 Notes/", "05 Research/", "09 Attachments/"];
+          const marker = markers.find((entry) => path.toLowerCase().includes(entry.toLowerCase()));
+          path = marker ? path.slice(path.toLowerCase().indexOf(marker.toLowerCase())) : path.split("/").pop();
+        }
+        return path.replace(/^\/+/, "");
+      }
       resolveLink(value, sourcePath = "") {
-        const clean = this.cleanLink(value);
+        const clean = this.normalizeVaultPath(value);
         if (!clean) return null;
         const file = this.app.vault.getAbstractFileByPath(clean) || this.app.metadataCache.getFirstLinkpathDest(clean, sourcePath);
         return file instanceof TFile ? file : null;
@@ -446,6 +455,14 @@ ${candidate.summary}
         await this.load();
         return this.get(insight.path);
       }
+      async ensureFolder(path) {
+        const parts = String(path || "").split("/").filter(Boolean);
+        let current = "";
+        for (const part of parts) {
+          current = current ? `${current}/${part}` : part;
+          if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+        }
+      }
       async create(type, title, project = "", metadata = {}) {
         const config = {
           literature: { folder: "03 Literature/Papers", status: "inbox", prefix: "" },
@@ -456,6 +473,7 @@ ${candidate.summary}
           project: { folder: "02 Projects", status: "planning", prefix: "" }
         }[type];
         if (!config) throw new Error("\u4E0D\u652F\u6301\u7684\u5BF9\u8C61\u7C7B\u578B");
+        await this.ensureFolder(config.folder);
         const safe = title.replace(/[\\/:*?\"<>|]/g, "-").trim();
         const path = await this.uniquePath(`${config.folder}/${config.prefix}${safe}.md`);
         const projectYaml = project ? `
@@ -645,6 +663,13 @@ var require_capture_modal = __commonJS({
       onOpen() {
         const { contentEl } = this;
         contentEl.addClass("ros-capture-modal");
+        const theme = this.plugin.theme?.resolveTheme?.();
+        if (theme?.id === "custom-dynamic") {
+          [contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach((target) => {
+            target.addClass("ros-theme-custom");
+            Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+          });
+        }
         contentEl.createEl("h2", { text: "\u6DFB\u52A0\u6587\u732E" });
         contentEl.createEl("p", { text: "\u5148\u628A PDF \u6216 PPT \u62D6\u5165 Obsidian \u9644\u4EF6\u6587\u4EF6\u5939\uFF0C\u518D\u586B\u5199\u5176\u77E5\u8BC6\u5E93\u5185\u8DEF\u5F84\u3002\u53EA\u6709\u6807\u9898\u4E3A\u5FC5\u586B\u9879\u3002", cls: "ros-modal-help" });
         new Setting(contentEl).setName("\u6807\u9898").addText((text) => {
@@ -1064,6 +1089,13 @@ var require_progress_modal = __commonJS({
       onOpen() {
         const { contentEl } = this;
         contentEl.addClass("ros-progress-modal");
+        const theme = this.plugin.theme?.resolveTheme?.();
+        if (theme?.id === "custom-dynamic") {
+          [contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach((target) => {
+            target.addClass("ros-theme-custom");
+            Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+          });
+        }
         contentEl.createEl("h2", { text: "\u8BB0\u5F55\u7814\u7A76\u8FDB\u5C55" });
         contentEl.createEl("p", { text: "\u8BB0\u5F55\u4F60\u56E0\u9605\u8BFB\u800C\u5F62\u6210\u7684\u8BA4\u8BC6\uFF0C\u800C\u4E0D\u662F\u9605\u8BFB\u6570\u91CF\u3002\u4E4B\u540E\u4ECD\u53EF\u5728 Markdown \u4E2D\u81EA\u7531\u8865\u5145\u3002", cls: "ros-modal-help" });
         new Setting(contentEl).setName("\u6807\u9898").setDesc("\u7528\u4E00\u53E5\u8BDD\u8868\u8FBE\u5F53\u524D\u8BA4\u8BC6").addText((text) => {
@@ -1154,6 +1186,13 @@ var require_synthesis_modal = __commonJS({
       }
       onOpen() {
         this.contentEl.addClass("ros-synthesis-modal");
+        const theme = this.plugin.theme?.resolveTheme?.();
+        if (theme?.id === "custom-dynamic") {
+          [this.contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach((target) => {
+            target.addClass("ros-theme-custom");
+            Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+          });
+        }
         this.render();
       }
       render() {
@@ -1330,6 +1369,12 @@ var require_literature_modal = __commonJS({
       onOpen() {
         const root = this.contentEl;
         root.addClass("ros-literature-edit-modal");
+        const theme = this.plugin.theme?.resolveTheme?.();
+        if (theme?.id === "custom-dynamic") {
+          root.addClass("ros-theme-custom");
+          const targets = [root, this.containerEl, this.modalEl].filter(Boolean);
+          targets.forEach((target) => Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value)));
+        }
         root.createEl("h2", { text: "\u7F16\u8F91\u6587\u732E\u4FE1\u606F" });
         root.createEl("p", { text: "\u4FEE\u6539\u53EA\u4F1A\u66F4\u65B0\u6587\u732E\u7B14\u8BB0\u7684 Properties\uFF0C\u4E0D\u4F1A\u6539\u52A8 PDF \u6B63\u6587\u3002", cls: "ros-modal-help" });
         this.text(root, "\u8BBA\u6587\u6807\u9898", "title");
@@ -1411,6 +1456,13 @@ var require_literature_modal = __commonJS({
       onOpen() {
         const root = this.contentEl;
         root.addClass("ros-literature-delete-modal");
+        const theme = this.plugin.theme?.resolveTheme?.();
+        if (theme?.id === "custom-dynamic") {
+          [root, this.containerEl, this.modalEl].filter(Boolean).forEach((target) => {
+            target.addClass("ros-theme-custom");
+            Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+          });
+        }
         root.createEl("h2", { text: "\u4ECE\u6587\u732E\u5E93\u5220\u9664\uFF1F" });
         root.createEl("p", { text: this.item.title });
         root.createEl("p", { text: "\u9ED8\u8BA4\u53EA\u628A\u6587\u732E\u7B14\u8BB0\u79FB\u5230\u7CFB\u7EDF\u56DE\u6536\u7AD9\uFF0C\u539F\u59CB PDF\u3001PPT \u548C\u72EC\u7ACB\u7B14\u8BB0\u4F1A\u7EE7\u7EED\u4FDD\u7559\u3002", cls: "ros-modal-help" });
@@ -2759,7 +2811,10 @@ var require_theme_service = __commonJS({
           return;
         }
         root.addClass("ros-theme-custom");
-        Object.entries(theme.tokens || {}).forEach(([name, value]) => root.style.setProperty(name, value));
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => {
+          root.style.setProperty(name, value);
+          document.body?.style.setProperty(name, value);
+        });
         const aliases = {
           "--ros-bg": "transparent",
           "--ros-panel": theme.tokens["--skin-sidebar"],
@@ -2778,7 +2833,7 @@ var require_theme_service = __commonJS({
         Object.entries(aliases).forEach(([name, value]) => value && root.style.setProperty(name, value));
       }
       clearTokens(root) {
-        ["--skin-sidebar", "--skin-topbar", "--skin-surface", "--skin-surface-hover", "--skin-border", "--skin-border-strong", "--skin-text", "--skin-text-secondary", "--skin-text-muted", "--skin-accent", "--skin-on-accent", "--skin-accent-soft", "--skin-graph-node", "--skin-graph-glow", "--skin-graph-line", "--skin-overlay", "--skin-blur", "--ros-bg", "--ros-panel", "--ros-panel-2", "--ros-panel-3", "--ros-border", "--ros-border-strong", "--ros-text", "--ros-text-2", "--ros-text-3", "--ros-green", "--ros-green-soft", "--ros-accent", "--ros-accent-hover"].forEach((name) => root.style.removeProperty(name));
+        ["--skin-sidebar", "--skin-topbar", "--skin-surface", "--skin-surface-hover", "--skin-border", "--skin-border-strong", "--skin-text", "--skin-text-secondary", "--skin-text-muted", "--skin-accent", "--skin-on-accent", "--skin-accent-soft", "--skin-graph-node", "--skin-graph-glow", "--skin-graph-line", "--skin-overlay", "--skin-blur", "--ros-bg", "--ros-panel", "--ros-panel-2", "--ros-panel-3", "--ros-border", "--ros-border-strong", "--ros-text", "--ros-text-2", "--ros-text-3", "--ros-green", "--ros-green-soft", "--ros-accent", "--ros-accent-hover"].forEach((name) => { root.style.removeProperty(name); document.body?.style.removeProperty(name); });
       }
     };
     module2.exports = { ThemeService: ThemeService2, FOREST_ORIGINAL_THEME, FOREST_THEME_ID, CUSTOM_THEME_ID };
@@ -2970,18 +3025,19 @@ var require_ai_service = __commonJS({
         return `${base}/chat/completions`;
       }
       async chat(messages, options = {}) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199 API Key");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199 DeepSeek API Key");
         const response = await requestUrl({
-          url: this.apiEndpoint,
+          url: `${String(this.settings.deepseekBaseUrl || this.settings.apiBaseUrl || "").trim().replace(/\/$/, "")}/chat/completions`,
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${String(this.settings.apiKey).trim()}`
+            Authorization: `Bearer ${String(this.settings.deepseekApiKey || this.settings.apiKey || "").trim()}`
           },
           body: JSON.stringify({
-            model: this.settings.apiModel,
+            model: this.settings.deepseekModel || this.settings.apiModel,
             messages,
             stream: false,
+            thinking: { type: options.thinking ? "enabled" : "disabled" },
             temperature: options.temperature ?? 0.3,
             max_tokens: options.maxTokens ?? 2600,
             ...options.json ? { response_format: { type: "json_object" } } : {}
@@ -2990,7 +3046,7 @@ var require_ai_service = __commonJS({
         });
         if (response.status < 200 || response.status >= 300) {
           const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
-          throw new Error(`AI \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
+          throw new Error(`DeepSeek \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
         }
         return response.json?.choices?.[0]?.message?.content || "";
       }
@@ -3059,9 +3115,9 @@ var require_ai_service = __commonJS({
         ], { json: true, maxTokens: 3500 });
         let parsed;
         try {
-          parsed = JSON.parse(content);
+          parsed = this.parseJsonResponse(content, "AI \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
         } catch {
-          throw new Error("DeepSeek \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
+          throw new Error("AI \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
         }
         const byId = new Map((parsed.papers || []).map((x) => [x.id, x]));
         return papers.map((p) => ({ ...p, ...byId.get(p.id) || { score: 30, reason: "\u4E0E\u5173\u6CE8\u5173\u952E\u8BCD\u5339\u914D", readingMode: "\u901F\u8BFB" } }));
@@ -3151,12 +3207,129 @@ ${readingNotes}`;
         return (hash >>> 0).toString(16);
       }
       parseJsonResponse(content, errorMessage) {
-        const clean = String(content || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+        const raw = String(content || "");
+        const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
         try {
           return JSON.parse(clean);
         } catch {
-          throw new Error(errorMessage);
+          const json = this.extractJsonObject(clean);
+          const partial = this.extractPartialJsonObject(clean);
+          for (const candidate of [json, this.repairJson(json), this.escapeJsonStringControlChars(this.repairJson(json)), partial, this.repairJson(partial), this.escapeJsonStringControlChars(this.repairJson(partial))].filter(Boolean)) {
+            try {
+              return JSON.parse(candidate);
+            } catch { /* try next repair */ }
+          }
+          const preview = clean.replace(/\s+/g, " ").slice(0, 260) || "\u7A7A\u54CD\u5E94";
+          console.warn("Research OS JSON parse failed", { preview, raw: clean.slice(0, 1600) });
+          throw new Error(`${errorMessage}\uFF1A${preview}`);
         }
+      }
+      extractJsonObject(text) {
+        const source = String(text || "");
+        for (let start = 0; start < source.length; start++) {
+          if (source[start] !== "{") continue;
+          let depth = 0;
+          let inString = false;
+          let escaped = false;
+          for (let index = start; index < source.length; index++) {
+            const char = source[index];
+            if (inString) {
+              if (escaped) escaped = false;
+              else if (char === "\\") escaped = true;
+              else if (char === '"') inString = false;
+              continue;
+            }
+            if (char === '"') inString = true;
+            else if (char === "{") depth++;
+            else if (char === "}") {
+              depth--;
+              if (depth === 0) return source.slice(start, index + 1);
+            }
+          }
+        }
+        return "";
+      }
+      extractPartialJsonObject(text) {
+        const source = String(text || "");
+        const start = source.indexOf("{");
+        if (start < 0) return "";
+        const stack = [];
+        let inString = false;
+        let escaped = false;
+        let output = "";
+        for (let index = start; index < source.length; index++) {
+          const char = source[index];
+          output += char;
+          if (inString) {
+            if (escaped) escaped = false;
+            else if (char === "\\") escaped = true;
+            else if (char === '"') inString = false;
+            continue;
+          }
+          if (char === '"') inString = true;
+          else if (char === "{" || char === "[") stack.push(char === "{" ? "}" : "]");
+          else if (char === "}" || char === "]") {
+            if (stack[stack.length - 1] === char) stack.pop();
+            if (!stack.length) return output;
+          }
+        }
+        if (inString) output += '"';
+        while (stack.length) output += stack.pop();
+        return output;
+      }
+      repairJson(text) {
+        return String(text || "")
+          .replace(/,\s*([}\]])/g, "$1")
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2018\u2019]/g, "'");
+      }
+      escapeJsonStringControlChars(text) {
+        const source = String(text || "");
+        let output = "";
+        let inString = false;
+        let escaped = false;
+        for (let index = 0; index < source.length; index++) {
+          const char = source[index];
+          if (inString) {
+            if (escaped) {
+              output += char;
+              escaped = false;
+              continue;
+            }
+            if (char === "\\") {
+              output += char;
+              escaped = true;
+              continue;
+            }
+            if (char === '"') {
+              output += char;
+              inString = false;
+              continue;
+            }
+            if (char === "\n") {
+              output += "\\n";
+              continue;
+            }
+            if (char === "\r") {
+              output += "\\r";
+              continue;
+            }
+            if (char === "\t") {
+              output += "\\t";
+              continue;
+            }
+            const code = char.charCodeAt(0);
+            if (code >= 0 && code < 32) {
+              output += `\\u${code.toString(16).padStart(4, "0")}`;
+              continue;
+            }
+            output += char;
+            continue;
+          }
+          output += char;
+          if (char === '"') inString = true;
+        }
+        return output;
       }
       async paperInsightContext(paper) {
         const note = await this.app.vault.read(paper.file);
@@ -3224,7 +3397,7 @@ ${pdfText}`;
           const response = await this.chat([
             {
               role: "system",
-              content: `\u4F60\u662F\u4E25\u8C28\u7684\u8BBA\u6587\u7814\u7A76\u63D0\u70BC\u52A9\u624B\u3002\u53EA\u80FD\u4F9D\u636E\u7528\u6237\u63D0\u4F9B\u7684\u8BBA\u6587\u6750\u6599\u56DE\u7B54\uFF0C\u4E0D\u5F97\u865A\u6784\u5B9E\u9A8C\u6570\u5B57\u3001\u6570\u636E\u96C6\u3001\u5F00\u6E90\u5730\u5740\u3001\u4F5C\u8005\u89C2\u70B9\u6216\u76F8\u5173\u7814\u7A76\u3002\u8BC1\u636E\u4E0D\u8DB3\u65F6\u5FC5\u987B\u660E\u786E\u5199\u201C\u6750\u6599\u4E2D\u672A\u8BF4\u660E\u201D\u3002\u56DE\u7B54\u8981\u5177\u4F53\u3001\u6E05\u695A\u3001\u9002\u5408\u7814\u7A76\u8005\u590D\u6838\u3002\u53EA\u8FD4\u56DE JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981 Markdown \u4EE3\u7801\u5757\u3002
+              content: `\u4F60\u662F\u4E25\u8C28\u7684\u8BBA\u6587\u7814\u7A76\u63D0\u70BC\u52A9\u624B\u3002\u53EA\u80FD\u4F9D\u636E\u7528\u6237\u63D0\u4F9B\u7684\u8BBA\u6587\u6750\u6599\u56DE\u7B54\uFF0C\u4E0D\u5F97\u865A\u6784\u5B9E\u9A8C\u6570\u5B57\u3001\u6570\u636E\u96C6\u3001\u5F00\u6E90\u5730\u5740\u3001\u4F5C\u8005\u89C2\u70B9\u6216\u76F8\u5173\u7814\u7A76\u3002\u8BC1\u636E\u4E0D\u8DB3\u65F6\u5FC5\u987B\u660E\u786E\u5199\u201C\u6750\u6599\u4E2D\u672A\u8BF4\u660E\u201D\u3002\u56DE\u7B54\u8981\u5177\u4F53\u3001\u6E05\u695A\u3001\u9002\u5408\u7814\u7A76\u8005\u590D\u6838\u3002\u53EA\u8FD4\u56DE JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981 Markdown \u4EE3\u7801\u5757\uFF0C\u4E0D\u8981\u89E3\u91CA\uFF0C\u4E0D\u8981\u524D\u7F00\u6216\u540E\u7F00\u3002\u7B2C\u4E00\u4E2A\u5B57\u7B26\u5FC5\u987B\u662F { \uFF0C\u6700\u540E\u4E00\u4E2A\u5B57\u7B26\u5FC5\u987B\u662F }\u3002
 
 \u5FC5\u987B\u9010\u4E00\u56DE\u7B54\u5341\u4E2A\u95EE\u9898\uFF1A
 Q1 \u8BBA\u6587\u8BD5\u56FE\u89E3\u51B3\u4EC0\u4E48\u95EE\u9898\uFF1F
@@ -3301,7 +3474,7 @@ ${context.material}` }
         ], { json: true, thinking: true, maxTokens: 2400 });
         let parsed;
         try {
-          parsed = JSON.parse(content);
+          parsed = this.parseJsonResponse(content, "AI \u8FD4\u56DE\u7684\u7814\u7A76\u8FDB\u5C55\u5EFA\u8BAE\u65E0\u6CD5\u89E3\u6790");
         } catch {
           throw new Error("AI \u8FD4\u56DE\u7684\u7814\u7A76\u8FDB\u5C55\u5EFA\u8BAE\u65E0\u6CD5\u89E3\u6790");
         }
@@ -3343,7 +3516,7 @@ ${context.material}` }
             role: "system",
             content: `\u4F60\u662F\u4E25\u8C28\u7684\u8DE8\u8BBA\u6587\u7814\u7A76\u7EFC\u5408\u52A9\u624B\u3002\u6839\u636E\u7528\u6237\u9009\u5B9A\u8BBA\u6587\u7684\u5341\u95EE\u63D0\u70BC\uFF0C\u56F4\u7ED5\u7814\u7A76\u76EE\u6807\u5F62\u6210\u4E00\u4EFD\u53EF\u4EE5\u7EE7\u7EED\u63A8\u8FDB\u7814\u7A76\u7684\u9636\u6BB5\u6027\u7ED3\u8BBA\u3002\u4E0D\u5F97\u8865\u9020\u8BBA\u6587\u4FE1\u606F\uFF1B\u6750\u6599\u4E0D\u8DB3\u5FC5\u987B\u660E\u786E\u8BF4\u660E\u3002\u4E0D\u8981\u9010\u7BC7\u590D\u8FF0\uFF0C\u8981\u6BD4\u8F83\u8BBA\u6587\u4E4B\u95F4\u7684\u5171\u8BC6\u3001\u5DEE\u5F02\u3001\u51B2\u7A81\u548C\u8BC1\u636E\u7F3A\u53E3\u3002\u6BCF\u6761\u5173\u952E\u5224\u65AD\u4F7F\u7528 [P1]\u3001[P2] \u5F62\u5F0F\u6807\u6CE8\u6765\u6E90\u3002\u53EA\u8FD4\u56DE JSON\uFF0C\u4E0D\u8981 Markdown \u4EE3\u7801\u5757\u3002
 
-\u8FD4\u56DE\u7ED3\u6784\uFF1A{"topic":string,"title":string,"sections":{"conclusion":string,"consensus":string,"conflicts":string,"methods":string,"gaps":string,"nextSteps":string},"evidence":[{"claim":string,"paperPaths":string[],"role":"support|oppose|background|method","confidence":0-100}],"classification":{"primaryTopic":string,"subtopics":string[]}}\u3002\u516D\u4E2A sections \u5FC5\u987B\u5168\u90E8\u586B\u5199\uFF1BnextSteps \u8981\u4ECE\u524D\u8FF0\u7A7A\u767D\u6216\u51B2\u7A81\u63A8\u5BFC\uFF0C\u4E0D\u5F97\u6CDB\u6CDB\u800C\u8C08\u3002`
+\u8FD4\u56DE\u7ED3\u6784\uFF1A{"topic":string,"title":string,"sections":{"conclusion":string,"consensus":string,"conflicts":string,"methods":string,"gaps":string,"nextSteps":string},"evidence":[{"claim":string,"paperPaths":string[],"role":"support|oppose|background|method","confidence":0-100}],"classification":{"primaryTopic":string,"subtopics":string[]}}\u3002\u516D\u4E2A sections \u5FC5\u987B\u5168\u90E8\u586B\u5199\uFF1B\u6BCF\u4E2A section \u6700\u591A 180 \u4E2A\u4E2D\u6587\u5B57\uFF1Bevidence \u6700\u591A 4 \u6761\uFF1BnextSteps \u8981\u4ECE\u524D\u8FF0\u7A7A\u767D\u6216\u51B2\u7A81\u63A8\u5BFC\uFF0C\u4E0D\u5F97\u6CDB\u6CDB\u800C\u8C08\u3002JSON \u5FC5\u987B\u5B8C\u6574\u95ED\u5408\u3002`
           },
           {
             role: "user",
@@ -3355,8 +3528,8 @@ ${materials.map((paper, index) => `[P${index + 1}] ${paper.path} \u2014 ${paper.
 \u7ED3\u6784\u5316\u6750\u6599\uFF1A
 ${JSON.stringify(materials)}`
           }
-        ], { json: true, thinking: true, maxTokens: 5200 });
-        const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790");
+        ], { json: true, thinking: true, maxTokens: 9000 });
+        const parsed = this.normalizeSynthesisResult(this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790"));
         if (!parsed.sections?.conclusion) throw new Error("AI \u7EFC\u5408\u7ED3\u679C\u7F3A\u5C11\u5F53\u524D\u7ED3\u8BBA");
         const validPaths = new Set(selected.map((paper) => paper.path));
         parsed.evidence = (parsed.evidence || []).map((item) => ({
@@ -3365,6 +3538,23 @@ ${JSON.stringify(materials)}`
           role: ["support", "oppose", "background", "method"].includes(item.role) ? item.role : "support",
           confidence: Math.max(0, Math.min(100, Number(item.confidence || 0)))
         })).filter((item) => item.claim && item.paperPaths.length);
+        return parsed;
+      }
+      normalizeSynthesisResult(result) {
+        const parsed = result && typeof result === "object" ? result : {};
+        const sourceSections = parsed.sections && typeof parsed.sections === "object" ? parsed.sections : {};
+        const pick = (...values) => values.map((value) => String(value || "").trim()).find(Boolean) || "";
+        parsed.sections = {
+          conclusion: pick(sourceSections.conclusion, sourceSections.currentConclusion, sourceSections.summary, sourceSections["\u5F53\u524D\u7ED3\u8BBA"], parsed.conclusion, parsed.currentConclusion, parsed.summary, parsed.result),
+          consensus: pick(sourceSections.consensus, sourceSections.commonGround, sourceSections.agreement, sourceSections["\u5171\u8BC6"], parsed.consensus),
+          conflicts: pick(sourceSections.conflicts, sourceSections.differences, sourceSections.disagreements, sourceSections["\u51B2\u7A81"], sourceSections["\u5DEE\u5F02"], parsed.conflicts, parsed.differences),
+          methods: pick(sourceSections.methods, sourceSections.methodInsights, sourceSections["\u65B9\u6CD5"], parsed.methods),
+          gaps: pick(sourceSections.gaps, sourceSections.openQuestions, sourceSections.researchGaps, sourceSections["\u7814\u7A76\u7A7A\u767D"], parsed.gaps),
+          nextSteps: pick(sourceSections.nextSteps, sourceSections.nextStep, sourceSections.futureWork, sourceSections["\u4E0B\u4E00\u6B65"], parsed.nextSteps, parsed.nextAction)
+        };
+        if (!parsed.title) parsed.title = pick(parsed.topic, parsed.sections.conclusion).slice(0, 48) || "\u9636\u6BB5\u6027\u7814\u7A76\u8FDB\u5C55";
+        if (!parsed.topic) parsed.topic = pick(parsed.classification?.primaryTopic, parsed.title, "\u672A\u5206\u7C7B");
+        if (!parsed.classification || typeof parsed.classification !== "object") parsed.classification = {};
         return parsed;
       }
       async repairPaperMetadata(paper) {

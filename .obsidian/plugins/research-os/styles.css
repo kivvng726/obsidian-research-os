@@ -1938,6 +1938,34 @@
 .ros-insight-footer { display: flex; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--ros-border); }
 .research-os-host.ros-theme-custom .ros-insight-candidate-actions button:not(.ros-primary-btn) { background: var(--skin-surface) !important; border-color: var(--skin-border) !important; color: var(--skin-text-secondary) !important; }
 
+.research-os-host.ros-theme-custom .ros-insight-footer .ros-secondary-btn,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button {
+  border-color: var(--skin-border-strong) !important;
+  background: var(--skin-accent-soft) !important;
+  background-image: none !important;
+  color: var(--skin-accent) !important;
+  -webkit-text-fill-color: var(--skin-accent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--skin-text) 12%, transparent), 0 7px 18px color-mix(in srgb, var(--skin-sidebar) 34%, transparent) !important;
+}
+
+.research-os-host.ros-theme-custom .ros-insight-footer .ros-secondary-btn:hover,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button:hover {
+  border-color: var(--skin-accent) !important;
+  background: var(--skin-surface-hover) !important;
+  color: var(--skin-text) !important;
+  -webkit-text-fill-color: var(--skin-text) !important;
+}
+
+.research-os-host.ros-theme-custom .ros-insight-footer .ros-secondary-btn:disabled,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button:disabled {
+  border-color: var(--skin-border) !important;
+  background: color-mix(in srgb, var(--skin-surface) 86%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text-muted) !important;
+  -webkit-text-fill-color: var(--skin-text-muted) !important;
+  opacity: .72 !important;
+}
+
 /* Release polish: keep native Obsidian controls from punching white holes through the forest glass UI. */
 .research-os-host .ros-search input,
 .research-os-host .ros-search input[type="search"],
@@ -2118,6 +2146,112 @@
   color: rgba(232,244,237,.46) !important;
 }
 
+.research-os-host.ros-theme-custom .ros-reading-notes-group,
+.research-os-host.ros-theme-custom .ros-reading-note-row {
+  border-color: var(--skin-border) !important;
+  background: color-mix(in srgb, var(--skin-surface) 72%, transparent) !important;
+  color: var(--skin-text-secondary) !important;
+}
+.research-os-host.ros-theme-custom .ros-reading-note-row:hover {
+  background: var(--skin-surface-hover) !important;
+  color: var(--skin-text) !important;
+}
+.research-os-host.ros-theme-custom .ros-reading-note-row > span:first-child { color: var(--skin-accent) !important; }
+.research-os-host.ros-theme-custom .ros-reading-note-row > span:last-child,
+.research-os-host.ros-theme-custom .ros-reading-note-row div span { color: var(--skin-text-muted) !important; }
+
+.modal-container:has(.ros-progress-modal),
+.modal-container:has(.ros-progress-modal) .modal,
+.modal-container:has(.ros-progress-modal) .modal-content,
+.ros-progress-modal,
+.ros-progress-paper-picker,
+.ros-progress-paper-choice {
+  background: color-mix(in srgb, var(--skin-surface, #202624) 92%, transparent) !important;
+  border-color: var(--skin-border, rgba(220,255,234,.18)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+}
+.ros-progress-modal h2,
+.ros-progress-modal h3,
+.ros-progress-modal p,
+.ros-progress-modal label,
+.ros-progress-modal strong,
+.ros-progress-modal span { color: var(--skin-text, #f4fff7) !important; }
+.ros-progress-modal input,
+.ros-progress-modal textarea,
+.ros-progress-modal select {
+  background: color-mix(in srgb, var(--skin-sidebar, #07120d) 88%, transparent) !important;
+  border-color: var(--skin-border-strong, rgba(220,255,234,.28)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4fff7) !important;
+}
+.ros-progress-modal .ros-progress-paper-choice:hover,
+.ros-progress-modal .ros-progress-paper-choice.is-selected {
+  background: var(--skin-surface-hover) !important;
+  border-color: var(--skin-accent) !important;
+}
+.modal.ros-theme-custom:has(.ros-synthesis-modal),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content,
+.modal-content.ros-theme-custom.ros-synthesis-modal,
+.ros-synthesis-modal.ros-theme-custom {
+  background: var(--skin-surface, #202624) !important;
+  background-image: none !important;
+  border-color: var(--skin-border, rgba(220,255,234,.18)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+}
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-close-button,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content * {
+  color: var(--skin-text, #f4fff7) !important;
+}
+.ros-synthesis-modal.ros-theme-custom input,
+.ros-synthesis-modal.ros-theme-custom textarea {
+  background: color-mix(in srgb, var(--skin-sidebar, #07120d) 88%, transparent) !important;
+  border-color: var(--skin-border-strong, rgba(220,255,234,.28)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4fff7) !important;
+}
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper-list,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-selection-summary,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper-group,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper {
+  background: color-mix(in srgb, var(--skin-surface, #202624) 88%, transparent) !important;
+  background-image: none !important;
+  border-color: var(--skin-border, rgba(220,255,234,.18)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+}
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper:hover,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper.is-selected {
+  background: var(--skin-surface-hover, rgba(255,255,255,.12)) !important;
+}
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-actions {
+  background: color-mix(in srgb, var(--skin-surface, #202624) 94%, transparent) !important;
+  background-image: none !important;
+  border-color: var(--skin-border, rgba(220,255,234,.18)) !important;
+}
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-head p,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-step,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper div > span,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-group-head span,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-actions > span {
+  color: var(--skin-text-muted, var(--skin-text-secondary, #b8c8bf)) !important;
+}
+.modal.ros-theme-custom:has(.ros-progress-modal),
+.modal.ros-theme-custom:has(.ros-progress-modal) .modal-content,
+.modal-content.ros-theme-custom.ros-progress-modal,
+.ros-progress-modal.ros-theme-custom {
+  background: var(--skin-surface, #202624) !important;
+  background-image: none !important;
+  border-color: var(--skin-border, rgba(220,255,234,.18)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--skin-shadow, #000) 38%, transparent) !important;
+}
+.modal.ros-theme-custom:has(.ros-progress-modal) .modal-close-button,
+.modal.ros-theme-custom:has(.ros-progress-modal) .modal-content * {
+  color: var(--skin-text, #f4fff7) !important;
+}
+.modal.ros-theme-custom:has(.ros-progress-modal) .modal-content {
+  scrollbar-color: var(--skin-accent, #8fbf72) var(--skin-surface, #202624);
+}
+
 .research-os-host button.ros-secondary-btn:disabled,
 .research-os-host button.ros-primary-btn:disabled,
 .research-os-host button.mod-cta:disabled,
@@ -2202,13 +2336,489 @@
   stroke: currentColor !important;
 }
 
+.research-os-host.ros-theme-custom button.ros-ai-library-action,
+.research-os-host.ros-theme-custom button.ros-ai-extract-action {
+  border-color: var(--skin-border-strong) !important;
+  background: var(--skin-accent-soft) !important;
+  background-image: none !important;
+  color: var(--skin-accent) !important;
+  -webkit-text-fill-color: var(--skin-accent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--skin-text) 12%, transparent), 0 7px 18px color-mix(in srgb, var(--skin-sidebar) 34%, transparent) !important;
+}
+.research-os-host.ros-theme-custom button.ros-ai-library-action:hover,
+.research-os-host.ros-theme-custom button.ros-ai-extract-action:hover,
+.research-os-host.ros-theme-custom button.ros-ai-library-action:focus-visible,
+.research-os-host.ros-theme-custom button.ros-ai-extract-action:focus-visible {
+  border-color: var(--skin-accent) !important;
+  background: var(--skin-surface-hover) !important;
+  color: var(--skin-text) !important;
+  -webkit-text-fill-color: var(--skin-text) !important;
+}
+
 .research-os-host button.ros-ai-library-action span,
 .research-os-host button.ros-ai-extract-action span {
   color: inherit !important;
   -webkit-text-fill-color: inherit !important;
 }
+
+/* Literature editor modal: Obsidian's modal surface must follow the active skin too. */
+.modal-container .modal:has(.ros-literature-edit-modal),
+.modal-container .modal:has(.ros-literature-edit-modal) .modal-content,
+.ros-literature-edit-modal {
+  border: 1px solid rgba(239,255,246,.24) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--skin-surface, #1e3027) 92%, transparent), color-mix(in srgb, var(--skin-sidebar, #07120d) 94%, transparent)) !important;
+  color: var(--skin-text, rgba(240,255,245,.92)) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.40), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(125%) !important;
+  backdrop-filter: blur(26px) saturate(125%) !important;
+}
+
+.ros-literature-edit-modal h2,
+.ros-literature-edit-modal h3,
+.ros-literature-edit-modal label,
+.ros-literature-edit-modal .setting-item-name,
+.ros-literature-edit-modal .setting-item-description,
+.ros-literature-edit-modal p,
+.ros-literature-edit-modal .ros-modal-help {
+  color: rgba(240,255,245,.92) !important;
+  -webkit-text-fill-color: rgba(240,255,245,.92) !important;
+}
+
+.ros-literature-edit-modal h2 { color: #f4fff7 !important; font-size: 18px; }
+.ros-literature-edit-modal.ros-theme-custom h2 { color: var(--skin-text) !important; }
+.ros-literature-edit-modal .ros-modal-help,
+.ros-literature-edit-modal .setting-item-description { color: var(--skin-text-secondary, rgba(220,238,226,.68)) !important; }
+.ros-literature-edit-modal hr,
+.ros-literature-edit-modal .setting-item { border-color: var(--skin-border, rgba(220,255,234,.16)) !important; }
+.ros-literature-edit-modal input,
+.ros-literature-edit-modal textarea,
+.ros-literature-edit-modal select {
+  color: #f4fff7 !important;
+  -webkit-text-fill-color: #f4fff7 !important;
+}
+.ros-literature-edit-modal button {
+  border-color: var(--skin-border-strong, rgba(220,255,234,.28)) !important;
+  background: var(--skin-accent-soft, rgba(228,255,239,.10)) !important;
+  color: var(--skin-text, #f4fff7) !important;
+}
+.ros-literature-edit-modal button:hover {
+  background: var(--skin-surface-hover, rgba(228,255,239,.20)) !important;
+  border-color: var(--skin-accent, rgba(220,255,234,.52)) !important;
+}
+.ros-literature-edit-modal.ros-theme-custom input,
+.ros-literature-edit-modal.ros-theme-custom textarea,
+.ros-literature-edit-modal.ros-theme-custom select {
+  border-color: var(--skin-border-strong) !important;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--skin-sidebar) 88%, transparent), color-mix(in srgb, var(--skin-surface) 72%, transparent)) !important;
+  color: var(--skin-text) !important;
+  -webkit-text-fill-color: var(--skin-text) !important;
+}
+.ros-literature-edit-modal.ros-theme-custom input:focus,
+.ros-literature-edit-modal.ros-theme-custom textarea:focus,
+.ros-literature-edit-modal.ros-theme-custom select:focus {
+  border-color: var(--skin-accent) !important;
+  box-shadow: 0 0 0 3px var(--skin-accent-soft) !important;
+}
+.ros-literature-edit-modal.ros-theme-custom input::placeholder,
+.ros-literature-edit-modal.ros-theme-custom textarea::placeholder {
+  color: var(--skin-text-muted) !important;
+}
 @media (max-width: 720px) {
   .ros-insight-empty, .ros-insight-candidate { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
   .ros-insight-candidate-actions { justify-content: flex-end; }
   .ros-insight-question > p { padding-left: 4px; padding-right: 4px; }
+}
+
+/* Final custom-skin pass for Obsidian-hosted synthesis modals.
+   These modals live outside .research-os-host, so host-scoped skin rules cannot reach them. */
+.modal-container.ros-theme-custom:has(.ros-synthesis-modal),
+.modal.ros-theme-custom:has(.ros-synthesis-modal),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content,
+.modal-content.ros-theme-custom.ros-synthesis-modal,
+.ros-synthesis-modal.ros-theme-custom {
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .32)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 94%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content *,
+.ros-synthesis-modal.ros-theme-custom * {
+  color: inherit;
+}
+
+.modal.ros-theme-custom:has(.ros-synthesis-modal) input:not([type="checkbox"]),
+.ros-synthesis-modal.ros-theme-custom input:not([type="checkbox"]),
+.ros-synthesis-modal.ros-theme-custom textarea,
+.ros-synthesis-modal.ros-theme-custom select,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-search {
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .34)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .88)) 82%, var(--skin-text, #f4f6fb) 6%) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--skin-text, #fff) 10%, transparent) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-synthesis-modal) input::placeholder,
+.ros-synthesis-modal.ros-theme-custom input::placeholder,
+.ros-synthesis-modal.ros-theme-custom textarea::placeholder {
+  color: var(--skin-text-muted, rgba(220, 224, 235, .68)) !important;
+  -webkit-text-fill-color: var(--skin-text-muted, rgba(220, 224, 235, .68)) !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper-list,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-selection-summary,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper-group,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper-list,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-selection-summary,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper-group,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper {
+  border-color: var(--skin-border, rgba(210, 215, 230, .22)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 86%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-group-head,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-group-head {
+  border-color: var(--skin-border, rgba(210, 215, 230, .18)) !important;
+  background: color-mix(in srgb, var(--skin-surface-hover, rgba(86, 88, 106, .45)) 62%, transparent) !important;
+  background-image: none !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper:hover,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper.is-selected,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper:hover,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper.is-selected {
+  background: var(--skin-surface-hover, rgba(255, 255, 255, .12)) !important;
+  background-image: none !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-actions,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-actions {
+  border-color: var(--skin-border, rgba(210, 215, 230, .22)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .94)) 96%, transparent) !important;
+  background-image: none !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-head p,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-step,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-paper div > span,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-group-head span,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-actions > span,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-head p,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-step,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-paper div > span,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-group-head span,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-actions > span {
+  color: var(--skin-text-muted, rgba(220, 224, 235, .72)) !important;
+  -webkit-text-fill-color: var(--skin-text-muted, rgba(220, 224, 235, .72)) !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom button,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-presets button,
+.ros-synthesis-modal.ros-theme-custom .ros-synthesis-actions button,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-presets button,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .ros-synthesis-actions button {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .34)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 78%, var(--skin-text, #f4f6fb) 8%) !important;
+  background-color: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 78%, var(--skin-text, #f4f6fb) 8%) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--skin-text, #fff) 12%, transparent), 0 7px 18px color-mix(in srgb, var(--skin-surface, #262730) 34%, transparent) !important;
+  opacity: 1 !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom button:hover,
+.ros-synthesis-modal.ros-theme-custom button:focus-visible,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button:hover,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button:focus-visible {
+  border-color: var(--skin-accent, rgba(190, 200, 255, .78)) !important;
+  background: var(--skin-surface-hover, rgba(255, 255, 255, .12)) !important;
+  background-color: var(--skin-surface-hover, rgba(255, 255, 255, .12)) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom button:disabled,
+.ros-synthesis-modal.ros-theme-custom button[disabled],
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button:disabled,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button[disabled] {
+  border-color: var(--skin-border, rgba(210, 215, 230, .18)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .72)) 90%, transparent) !important;
+  background-color: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .72)) 90%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text-muted, rgba(220, 224, 235, .58)) !important;
+  -webkit-text-fill-color: var(--skin-text-muted, rgba(220, 224, 235, .58)) !important;
+  opacity: .72 !important;
+}
+
+.ros-synthesis-modal.ros-theme-custom button svg,
+.ros-synthesis-modal.ros-theme-custom button span,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button svg,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button span {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  stroke: currentColor !important;
+}
+
+/* Unified custom-skin rules for every Research OS modal hosted by Obsidian. */
+.modal.ros-theme-custom:has(.ros-capture-modal),
+.modal.ros-theme-custom:has(.ros-progress-modal),
+.modal.ros-theme-custom:has(.ros-synthesis-modal),
+.modal.ros-theme-custom:has(.ros-literature-edit-modal),
+.modal.ros-theme-custom:has(.ros-literature-delete-modal),
+.modal.ros-theme-custom:has(.ros-capture-modal) .modal-content,
+.modal.ros-theme-custom:has(.ros-progress-modal) .modal-content,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content,
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) .modal-content,
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) .modal-content,
+.ros-capture-modal.ros-theme-custom,
+.ros-progress-modal.ros-theme-custom,
+.ros-synthesis-modal.ros-theme-custom,
+.ros-literature-edit-modal.ros-theme-custom,
+.ros-literature-delete-modal.ros-theme-custom {
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .32)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .88)) 94%, transparent) !important;
+  background-color: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .88)) 94%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.38), inset 0 1px 0 color-mix(in srgb, var(--skin-text, #fff) 12%, transparent) !important;
+  -webkit-backdrop-filter: blur(var(--skin-blur, 24px)) saturate(125%) !important;
+  backdrop-filter: blur(var(--skin-blur, 24px)) saturate(125%) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.ros-capture-modal.ros-theme-custom :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.ros-progress-modal.ros-theme-custom :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.ros-synthesis-modal.ros-theme-custom :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.ros-literature-edit-modal.ros-theme-custom :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help),
+.ros-literature-delete-modal.ros-theme-custom :is(h1,h2,h3,h4,p,label,.setting-item-name,.setting-item-description,.ros-modal-help) {
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(.setting-item-description,.ros-modal-help),
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(.setting-item-description,.ros-modal-help),
+.ros-capture-modal.ros-theme-custom :is(.setting-item-description,.ros-modal-help),
+.ros-progress-modal.ros-theme-custom :is(.setting-item-description,.ros-modal-help),
+.ros-synthesis-modal.ros-theme-custom :is(.setting-item-description,.ros-modal-help),
+.ros-literature-edit-modal.ros-theme-custom :is(.setting-item-description,.ros-modal-help),
+.ros-literature-delete-modal.ros-theme-custom :is(.setting-item-description,.ros-modal-help) {
+  color: var(--skin-text-secondary, rgba(220, 224, 235, .78)) !important;
+  -webkit-text-fill-color: var(--skin-text-secondary, rgba(220, 224, 235, .78)) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(.setting-item,hr),
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(.setting-item,hr),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(.setting-item,hr),
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(.setting-item,hr),
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(.setting-item,hr),
+.ros-capture-modal.ros-theme-custom :is(.setting-item,hr),
+.ros-progress-modal.ros-theme-custom :is(.setting-item,hr),
+.ros-synthesis-modal.ros-theme-custom :is(.setting-item,hr),
+.ros-literature-edit-modal.ros-theme-custom :is(.setting-item,hr),
+.ros-literature-delete-modal.ros-theme-custom :is(.setting-item,hr) {
+  border-color: var(--skin-border, rgba(210, 215, 230, .22)) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(input:not([type="checkbox"]),textarea,select),
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(input:not([type="checkbox"]),textarea,select),
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(input:not([type="checkbox"]),textarea,select),
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(input:not([type="checkbox"]),textarea,select),
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(input:not([type="checkbox"]),textarea,select),
+.ros-capture-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select),
+.ros-progress-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select),
+.ros-synthesis-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select),
+.ros-literature-edit-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select),
+.ros-literature-delete-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select) {
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .34)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .88)) 82%, var(--skin-text, #f4f6fb) 6%) !important;
+  background-color: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .88)) 82%, var(--skin-text, #f4f6fb) 6%) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--skin-text, #fff) 10%, transparent), 0 8px 20px rgba(0,0,0,.12) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(input:not([type="checkbox"]),textarea,select):focus,
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(input:not([type="checkbox"]),textarea,select):focus,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(input:not([type="checkbox"]),textarea,select):focus,
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(input:not([type="checkbox"]),textarea,select):focus,
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(input:not([type="checkbox"]),textarea,select):focus,
+.ros-capture-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select):focus,
+.ros-progress-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select):focus,
+.ros-synthesis-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select):focus,
+.ros-literature-edit-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select):focus,
+.ros-literature-delete-modal.ros-theme-custom :is(input:not([type="checkbox"]),textarea,select):focus {
+  border-color: var(--skin-accent, rgba(190, 200, 255, .78)) !important;
+  background: var(--skin-surface-hover, rgba(255,255,255,.12)) !important;
+  background-image: none !important;
+  box-shadow: 0 0 0 3px var(--skin-accent-soft, rgba(190, 200, 255, .16)), inset 0 1px 0 color-mix(in srgb, var(--skin-text, #fff) 12%, transparent) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) :is(input,textarea)::placeholder,
+.modal.ros-theme-custom:has(.ros-progress-modal) :is(input,textarea)::placeholder,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) :is(input,textarea)::placeholder,
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) :is(input,textarea)::placeholder,
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) :is(input,textarea)::placeholder,
+.ros-capture-modal.ros-theme-custom :is(input,textarea)::placeholder,
+.ros-progress-modal.ros-theme-custom :is(input,textarea)::placeholder,
+.ros-synthesis-modal.ros-theme-custom :is(input,textarea)::placeholder,
+.ros-literature-edit-modal.ros-theme-custom :is(input,textarea)::placeholder,
+.ros-literature-delete-modal.ros-theme-custom :is(input,textarea)::placeholder {
+  color: var(--skin-text-muted, rgba(220, 224, 235, .66)) !important;
+  -webkit-text-fill-color: var(--skin-text-muted, rgba(220, 224, 235, .66)) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) button,
+.modal.ros-theme-custom:has(.ros-progress-modal) button,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button,
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) button,
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) button,
+.ros-capture-modal.ros-theme-custom button,
+.ros-progress-modal.ros-theme-custom button,
+.ros-synthesis-modal.ros-theme-custom button,
+.ros-literature-edit-modal.ros-theme-custom button,
+.ros-literature-delete-modal.ros-theme-custom button {
+  border-color: var(--skin-border-strong, rgba(210, 215, 230, .34)) !important;
+  background: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 78%, var(--skin-text, #f4f6fb) 8%) !important;
+  background-color: color-mix(in srgb, var(--skin-surface, rgba(38, 39, 48, .86)) 78%, var(--skin-text, #f4f6fb) 8%) !important;
+  background-image: none !important;
+  color: var(--skin-text, #f4f6fb) !important;
+  -webkit-text-fill-color: var(--skin-text, #f4f6fb) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-capture-modal) button.mod-cta,
+.modal.ros-theme-custom:has(.ros-progress-modal) button.mod-cta,
+.modal.ros-theme-custom:has(.ros-synthesis-modal) button.mod-cta,
+.modal.ros-theme-custom:has(.ros-literature-edit-modal) button.mod-cta,
+.modal.ros-theme-custom:has(.ros-literature-delete-modal) button.mod-cta,
+.ros-capture-modal.ros-theme-custom button.mod-cta,
+.ros-progress-modal.ros-theme-custom button.mod-cta,
+.ros-synthesis-modal.ros-theme-custom button.mod-cta,
+.ros-literature-edit-modal.ros-theme-custom button.mod-cta,
+.ros-literature-delete-modal.ros-theme-custom button.mod-cta {
+  border-color: var(--skin-accent, rgba(190, 200, 255, .78)) !important;
+  background: var(--skin-accent, rgba(190, 200, 255, .72)) !important;
+  background-image: none !important;
+  color: var(--skin-on-accent, #111218) !important;
+  -webkit-text-fill-color: var(--skin-on-accent, #111218) !important;
+}
+
+/* Synthesis paper picker: wider desktop modal and no horizontal panning. */
+.modal.ros-theme-custom:has(.ros-synthesis-modal),
+.modal:has(.ros-synthesis-modal) {
+  width: min(1180px, 88vw) !important;
+  max-width: min(1180px, 88vw) !important;
+}
+
+.modal.ros-theme-custom:has(.ros-synthesis-modal) .modal-content,
+.modal:has(.ros-synthesis-modal) .modal-content,
+.ros-synthesis-modal {
+  width: 100% !important;
+  max-width: none !important;
+  overflow-x: hidden !important;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper-list {
+  overflow-x: hidden !important;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  min-width: 0 !important;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper > div {
+  min-width: 0 !important;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper strong {
+  display: -webkit-box !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.35 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper div > span {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.45 !important;
+}
+
+.ros-synthesis-modal .ros-synthesis-paper-state {
+  max-width: 190px;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .modal.ros-theme-custom:has(.ros-synthesis-modal),
+  .modal:has(.ros-synthesis-modal) {
+    width: min(96vw, 720px) !important;
+    max-width: min(96vw, 720px) !important;
+  }
+
+  .ros-synthesis-modal .ros-synthesis-paper {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+
+.ros-synthesis-modal .ros-synthesis-paper-state {
+    grid-column: 2;
+    max-width: 100%;
+    text-align: left;
+  }
+}
+
+/* Final pass for insight footer actions, placed after generic disabled button rules. */
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer .ros-secondary-btn,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button {
+  border-color: var(--skin-border-strong) !important;
+  background: var(--skin-accent-soft) !important;
+  background-color: var(--skin-accent-soft) !important;
+  background-image: none !important;
+  color: var(--skin-accent) !important;
+  -webkit-text-fill-color: var(--skin-accent) !important;
+}
+
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer .ros-secondary-btn:hover,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button:hover {
+  border-color: var(--skin-accent) !important;
+  background: var(--skin-surface-hover) !important;
+  background-color: var(--skin-surface-hover) !important;
+  background-image: none !important;
+  color: var(--skin-text) !important;
+  -webkit-text-fill-color: var(--skin-text) !important;
+}
+
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer .ros-secondary-btn:disabled,
+.research-os-host.ros-theme-custom .ros-paper-insight .ros-insight-footer button:disabled {
+  border-color: var(--skin-border) !important;
+  background: color-mix(in srgb, var(--skin-surface) 86%, transparent) !important;
+  background-color: color-mix(in srgb, var(--skin-surface) 86%, transparent) !important;
+  background-image: none !important;
+  color: var(--skin-text-muted) !important;
+  -webkit-text-fill-color: var(--skin-text-muted) !important;
+  opacity: .72 !important;
 }
