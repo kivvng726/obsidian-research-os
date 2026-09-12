@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 - 2026-09-12
+
+- Fixed Markdown drag-and-drop import failing with `ENOENT` on Windows by reading dropped file bytes directly.
+
 ## 0.4.2 - 2026-09-11
 
 - Fixed custom backgrounds not being persisted after selecting them, so the selected theme now survives an Obsidian restart.

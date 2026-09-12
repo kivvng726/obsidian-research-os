@@ -534,7 +534,11 @@ reading_progress: 0` : "";
       if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
       targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
       if (isMarkdown) {
-        const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
+        // Obsidian's desktop drag-and-drop File wrapper may expose a text()
+        // method that resolves the original absolute path through Node. That
+        // path is not a vault path and can fail with ENOENT after recent app
+        // updates. Read the dropped bytes directly instead.
+        const text = new TextDecoder().decode(await source.arrayBuffer());
         await this.app.vault.create(targetPath, text);
       } else await this.app.vault.createBinary(targetPath, await source.arrayBuffer());
     }

@@ -559,7 +559,7 @@ tags: []
           if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
           targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
           if (isMarkdown) {
-            const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
+            const text = new TextDecoder().decode(await source.arrayBuffer());
             await this.app.vault.create(targetPath, text);
           } else await this.app.vault.createBinary(targetPath, await source.arrayBuffer());
         }
