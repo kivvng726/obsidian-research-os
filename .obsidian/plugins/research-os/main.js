@@ -526,7 +526,7 @@ tags: []
         const bytes = await source.arrayBuffer();
         const metadata = this.extractPdfMetadata(bytes, source.name);
         const folder = "09 Attachments";
-        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        await this.ensureFolder(folder);
         const attachmentPath = await this.uniqueAttachmentPath(`${folder}/${source.name}`);
         await this.app.vault.createBinary(attachmentPath, bytes);
         const note = await this.create("literature", metadata.title, "", {
@@ -574,7 +574,7 @@ tags: []
         let targetPath = existingPath;
         if (!targetPath) {
           const folder = isMarkdown ? await this.ensureReadingFolder(item) : "09 Attachments";
-          if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+          await this.ensureFolder(folder);
           targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
           if (isMarkdown) {
             const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
@@ -596,11 +596,10 @@ tags: []
       }
       async ensureReadingFolder(item) {
         const root = "04 Notes/Reading Notes";
-        if (!this.app.vault.getAbstractFileByPath("04 Notes")) await this.app.vault.createFolder("04 Notes");
-        if (!this.app.vault.getAbstractFileByPath(root)) await this.app.vault.createFolder(root);
+        await this.ensureFolder(root);
         const safe = item.file.basename.replace(/[\\/:*?"<>|]/g, "-").trim();
         const folder = `${root}/${safe}`;
-        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        await this.ensureFolder(folder);
         return folder;
       }
       async createLearningNote(item, kind = "learning") {
@@ -3779,6 +3778,7 @@ var VIEW_TYPE = "research-os-view";
 module.exports = class ResearchOSPlugin extends Plugin {
   async onload() {
     this.store = new ResearchStore(this.app);
+    await this.ensureWorkspaceFolders();
     this.ai = new AIService(this);
     await this.ai.load();
     this.theme = new ThemeService(this);
@@ -3850,6 +3850,27 @@ module.exports = class ResearchOSPlugin extends Plugin {
         await this.openResearchOS(false);
       }
     });
+  }
+  async ensureWorkspaceFolders() {
+    const folders = [
+      "03 Literature/Papers",
+      "04 Notes/Reading Notes",
+      "04 Notes/Evidence",
+      "04 Notes/Concepts",
+      "05 Research/Progress",
+      "05 Research/Paper Insights",
+      "05 Research/Questions",
+      "09 Attachments",
+      "09 Attachments/Research OS Themes"
+    ];
+    for (const folder of folders) {
+      const parts = folder.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current = current ? `${current}/${part}` : part;
+        if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+      }
+    }
   }
   debounce(fn, wait) {
     let timer;

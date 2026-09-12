@@ -9,6 +9,7 @@ const VIEW_TYPE = "research-os-view";
 module.exports = class ResearchOSPlugin extends Plugin {
   async onload() {
     this.store = new ResearchStore(this.app);
+    await this.ensureWorkspaceFolders();
     this.ai = new AIService(this);
     await this.ai.load();
     this.theme = new ThemeService(this);
@@ -73,6 +74,28 @@ module.exports = class ResearchOSPlugin extends Plugin {
         await this.openResearchOS(false);
       }
     });
+  }
+
+  async ensureWorkspaceFolders() {
+    const folders = [
+      "03 Literature/Papers",
+      "04 Notes/Reading Notes",
+      "04 Notes/Evidence",
+      "04 Notes/Concepts",
+      "05 Research/Progress",
+      "05 Research/Paper Insights",
+      "05 Research/Questions",
+      "09 Attachments",
+      "09 Attachments/Research OS Themes"
+    ];
+    for (const folder of folders) {
+      const parts = folder.split("/").filter(Boolean);
+      let current = "";
+      for (const part of parts) {
+        current = current ? `${current}/${part}` : part;
+        if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+      }
+    }
   }
 
   debounce(fn, wait) {
