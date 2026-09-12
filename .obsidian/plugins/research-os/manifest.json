@@ -1,7 +1,7 @@
 {
   "id": "research-os",
   "name": "Research OS",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "minAppVersion": "1.9.0",
   "description": "An AI-assisted literature library, reading workspace, research synthesis system, and adaptive visual theme for Obsidian.",
   "author": "kivvng",

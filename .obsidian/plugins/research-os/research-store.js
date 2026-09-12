@@ -452,6 +452,7 @@ ${candidates.length ? candidates.map(candidate => `### ${candidate.title}\n\n${c
       project: { folder: "02 Projects", status: "planning", prefix: "" }
     }[type];
     if (!config) throw new Error("不支持的对象类型");
+    await this.ensureFolder(config.folder);
     const safe = title.replace(/[\\/:*?\"<>|]/g, "-").trim();
     const path = await this.uniquePath(`${config.folder}/${config.prefix}${safe}.md`);
     const projectYaml = project ? `\nproject:\n  - "[[${project.replace(/^\[\[|\]\]$/g, "")}]]"` : "\nproject: []";
@@ -476,11 +477,20 @@ reading_progress: 0` : "";
     return file;
   }
 
+  async ensureFolder(path) {
+    const parts = String(path || "").split("/").filter(Boolean);
+    let current = "";
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+    }
+  }
+
   async importPdf(source) {
     const bytes = await source.arrayBuffer();
     const metadata = this.extractPdfMetadata(bytes, source.name);
     const folder = "09 Attachments";
-    if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+    await this.ensureFolder(folder);
     const attachmentPath = await this.uniqueAttachmentPath(`${folder}/${source.name}`);
     await this.app.vault.createBinary(attachmentPath, bytes);
     const note = await this.create("literature", metadata.title, "", {
@@ -531,14 +541,10 @@ reading_progress: 0` : "";
     let targetPath = existingPath;
     if (!targetPath) {
       const folder = isMarkdown ? await this.ensureReadingFolder(item) : "09 Attachments";
-      if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+      await this.ensureFolder(folder);
       targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
       if (isMarkdown) {
-        // Obsidian's desktop drag-and-drop File wrapper may expose a text()
-        // method that resolves the original absolute path through Node. That
-        // path is not a vault path and can fail with ENOENT after recent app
-        // updates. Read the dropped bytes directly instead.
-        const text = new TextDecoder().decode(await source.arrayBuffer());
+        const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
         await this.app.vault.create(targetPath, text);
       } else await this.app.vault.createBinary(targetPath, await source.arrayBuffer());
     }
@@ -558,11 +564,10 @@ reading_progress: 0` : "";
 
   async ensureReadingFolder(item) {
     const root = "04 Notes/Reading Notes";
-    if (!this.app.vault.getAbstractFileByPath("04 Notes")) await this.app.vault.createFolder("04 Notes");
-    if (!this.app.vault.getAbstractFileByPath(root)) await this.app.vault.createFolder(root);
+    await this.ensureFolder(root);
     const safe = item.file.basename.replace(/[\\/:*?"<>|]/g, "-").trim();
     const folder = `${root}/${safe}`;
-    if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+    await this.ensureFolder(folder);
     return folder;
   }
 

@@ -456,6 +456,7 @@ ${candidate.summary}
           project: { folder: "02 Projects", status: "planning", prefix: "" }
         }[type];
         if (!config) throw new Error("\u4E0D\u652F\u6301\u7684\u5BF9\u8C61\u7C7B\u578B");
+        await this.ensureFolder(config.folder);
         const safe = title.replace(/[\\/:*?\"<>|]/g, "-").trim();
         const path = await this.uniquePath(`${config.folder}/${config.prefix}${safe}.md`);
         const projectYaml = project ? `
@@ -504,11 +505,19 @@ tags: []
         await this.load();
         return file;
       }
+      async ensureFolder(path) {
+        const parts = String(path || "").split("/").filter(Boolean);
+        let current = "";
+        for (const part of parts) {
+          current = current ? `${current}/${part}` : part;
+          if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
+        }
+      }
       async importPdf(source) {
         const bytes = await source.arrayBuffer();
         const metadata = this.extractPdfMetadata(bytes, source.name);
         const folder = "09 Attachments";
-        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        await this.ensureFolder(folder);
         const attachmentPath = await this.uniqueAttachmentPath(`${folder}/${source.name}`);
         await this.app.vault.createBinary(attachmentPath, bytes);
         const note = await this.create("literature", metadata.title, "", {
@@ -556,10 +565,10 @@ tags: []
         let targetPath = existingPath;
         if (!targetPath) {
           const folder = isMarkdown ? await this.ensureReadingFolder(item) : "09 Attachments";
-          if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+          await this.ensureFolder(folder);
           targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
           if (isMarkdown) {
-            const text = new TextDecoder().decode(await source.arrayBuffer());
+            const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
             await this.app.vault.create(targetPath, text);
           } else await this.app.vault.createBinary(targetPath, await source.arrayBuffer());
         }
@@ -578,11 +587,10 @@ tags: []
       }
       async ensureReadingFolder(item) {
         const root = "04 Notes/Reading Notes";
-        if (!this.app.vault.getAbstractFileByPath("04 Notes")) await this.app.vault.createFolder("04 Notes");
-        if (!this.app.vault.getAbstractFileByPath(root)) await this.app.vault.createFolder(root);
+        await this.ensureFolder(root);
         const safe = item.file.basename.replace(/[\\/:*?"<>|]/g, "-").trim();
         const folder = `${root}/${safe}`;
-        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+        await this.ensureFolder(folder);
         return folder;
       }
       async createLearningNote(item, kind = "learning") {
@@ -1689,8 +1697,9 @@ var require_research_view = __commonJS({
           event.preventDefault();
           shell.removeClass("is-pdf-dragging");
           const files = Array.from(event.dataTransfer.files || []);
-          const pdfs = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
-          const resources = files.filter((file) => /\.(md|ppt|pptx)$/i.test(file.name));
+          const fileKind = (file) => String(file.name || file.path || "").toLowerCase();
+          const pdfs = files.filter((file) => fileKind(file).endsWith(".pdf"));
+          const resources = files.filter((file) => /\.(md|ppt|pptx)$/i.test(fileKind(file)));
           const current = this.plugin.store.get(this.selectedPath);
           const internal = !files.length ? internalFile(event) : null;
           if (!pdfs.length && !resources.length && !internal) return new Notice2("\u652F\u6301\u62D6\u5165 PDF\u3001Markdown\u3001PPT \u548C PPTX \u6587\u4EF6");
@@ -2588,14 +2597,32 @@ var require_theme_service = __commonJS({
       async initialize() {
         const settings = this.plugin.ai.settings;
         let changed = false;
+        let restoredFromPersistence = false;
         try {
-          if (await this.app.vault.adapter.exists(this.persistencePath)) {
-            const persisted = JSON.parse(await this.app.vault.adapter.read(this.persistencePath));
+          const persistedFile = this.app.vault.getAbstractFileByPath(this.persistencePath);
+          if (persistedFile instanceof TFile) {
+            const persisted = JSON.parse(await this.app.vault.read(persistedFile));
+            restoredFromPersistence = true;
             if (persisted?.activeThemeId) settings.activeThemeId = persisted.activeThemeId;
             if (persisted?.customTheme) settings.customTheme = persisted.customTheme;
           }
         } catch (error) {
           console.warn("Research OS theme restore failed", error);
+        }
+        if (settings.customTheme?.backgroundPath) {
+          const restoredPath = this.resolveStoredBackgroundPath(settings.customTheme.backgroundPath);
+          if (restoredPath && restoredPath !== settings.customTheme.backgroundPath) {
+            settings.customTheme = { ...settings.customTheme, backgroundPath: restoredPath };
+            changed = true;
+          }
+        }
+        if (!restoredFromPersistence && !settings.customTheme) {
+          const fallback = this.findCustomBackgroundFile();
+          if (fallback instanceof TFile) {
+            settings.customTheme = await this.analyzePath(fallback.path);
+            settings.activeThemeId = CUSTOM_THEME_ID;
+            changed = true;
+          }
         }
         if (Object.prototype.hasOwnProperty.call(settings, "backgroundImagePath")) {
           delete settings.backgroundImagePath;
@@ -2621,16 +2648,35 @@ var require_theme_service = __commonJS({
         try {
           const folder = this.persistencePath.split("/").slice(0, -1).join("/");
           if (!this.app.vault.getAbstractFileByPath(folder)) await this.ensureFolder(folder);
-          await this.app.vault.adapter.write(this.persistencePath, JSON.stringify({
+          const content = JSON.stringify({
             activeThemeId: this.plugin.ai.settings.activeThemeId,
             customTheme: this.plugin.ai.settings.customTheme || null
-          }));
+          });
+          const existing = this.app.vault.getAbstractFileByPath(this.persistencePath);
+          if (existing instanceof TFile) await this.app.vault.modify(existing, content);
+          else await this.app.vault.create(this.persistencePath, content);
         } catch (error) {
           console.warn("Research OS theme persistence failed", error);
         }
       }
       isValidCustom(theme) {
         return Boolean(theme && theme.backgroundPath && theme.tokens && theme.controls);
+      }
+      resolveStoredBackgroundPath(path) {
+        const normalized = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+        if (normalized && this.app.vault.getAbstractFileByPath(normalized) instanceof TFile) return normalized;
+        const marker = "09 Attachments/Research OS Themes/";
+        const markerIndex = normalized.indexOf(marker);
+        if (markerIndex >= 0) {
+          const vaultPath = normalized.slice(markerIndex);
+          if (this.app.vault.getAbstractFileByPath(vaultPath) instanceof TFile) return vaultPath;
+        }
+        const fallback = this.findCustomBackgroundFile();
+        return fallback?.path || normalized;
+      }
+      findCustomBackgroundFile() {
+        const folder = this.app.vault.getAbstractFileByPath("09 Attachments/Research OS Themes");
+        return folder?.children?.find((file) => file instanceof TFile && /^custom-background\./i.test(file.name)) || null;
       }
       get activeThemeId() {
         return this.plugin.ai.settings.activeThemeId || FOREST_THEME_ID;

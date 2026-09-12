@@ -21,15 +21,33 @@ class ThemeService {
   async initialize() {
     const settings = this.plugin.ai.settings;
     let changed = false;
+    let restoredFromPersistence = false;
     // Keep theme state outside plugin data so reinstalling/updating the plugin
     // cannot reset a user's selected background.
     try {
-      if (await this.app.vault.adapter.exists(this.persistencePath)) {
-        const persisted = JSON.parse(await this.app.vault.adapter.read(this.persistencePath));
+      const persistedFile = this.app.vault.getAbstractFileByPath(this.persistencePath);
+      if (persistedFile instanceof TFile) {
+        const persisted = JSON.parse(await this.app.vault.read(persistedFile));
+        restoredFromPersistence = true;
         if (persisted?.activeThemeId) settings.activeThemeId = persisted.activeThemeId;
         if (persisted?.customTheme) settings.customTheme = persisted.customTheme;
       }
     } catch (error) { console.warn("Research OS theme restore failed", error); }
+    if (settings.customTheme?.backgroundPath) {
+      const restoredPath = this.resolveStoredBackgroundPath(settings.customTheme.backgroundPath);
+      if (restoredPath && restoredPath !== settings.customTheme.backgroundPath) {
+        settings.customTheme = { ...settings.customTheme, backgroundPath: restoredPath };
+        changed = true;
+      }
+    }
+    if (!restoredFromPersistence && !settings.customTheme) {
+      const fallback = this.findCustomBackgroundFile();
+      if (fallback instanceof TFile) {
+        settings.customTheme = await this.analyzePath(fallback.path);
+        settings.activeThemeId = CUSTOM_THEME_ID;
+        changed = true;
+      }
+    }
     if (Object.prototype.hasOwnProperty.call(settings, "backgroundImagePath")) {
       delete settings.backgroundImagePath;
       changed = true;
@@ -57,15 +75,36 @@ class ThemeService {
     try {
       const folder = this.persistencePath.split("/").slice(0, -1).join("/");
       if (!this.app.vault.getAbstractFileByPath(folder)) await this.ensureFolder(folder);
-      await this.app.vault.adapter.write(this.persistencePath, JSON.stringify({
+      const content = JSON.stringify({
         activeThemeId: this.plugin.ai.settings.activeThemeId,
         customTheme: this.plugin.ai.settings.customTheme || null
-      }));
+      });
+      const existing = this.app.vault.getAbstractFileByPath(this.persistencePath);
+      if (existing instanceof TFile) await this.app.vault.modify(existing, content);
+      else await this.app.vault.create(this.persistencePath, content);
     } catch (error) { console.warn("Research OS theme persistence failed", error); }
   }
 
   isValidCustom(theme) {
     return Boolean(theme && theme.backgroundPath && theme.tokens && theme.controls);
+  }
+
+  resolveStoredBackgroundPath(path) {
+    const normalized = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (normalized && this.app.vault.getAbstractFileByPath(normalized) instanceof TFile) return normalized;
+    const marker = "09 Attachments/Research OS Themes/";
+    const markerIndex = normalized.indexOf(marker);
+    if (markerIndex >= 0) {
+      const vaultPath = normalized.slice(markerIndex);
+      if (this.app.vault.getAbstractFileByPath(vaultPath) instanceof TFile) return vaultPath;
+    }
+    const fallback = this.findCustomBackgroundFile();
+    return fallback?.path || normalized;
+  }
+
+  findCustomBackgroundFile() {
+    const folder = this.app.vault.getAbstractFileByPath("09 Attachments/Research OS Themes");
+    return folder?.children?.find(file => file instanceof TFile && /^custom-background\./i.test(file.name)) || null;
   }
 
   get activeThemeId() { return this.plugin.ai.settings.activeThemeId || FOREST_THEME_ID; }

@@ -211,8 +211,9 @@ class ResearchView extends ItemView {
       event.preventDefault();
       shell.removeClass("is-pdf-dragging");
       const files = Array.from(event.dataTransfer.files || []);
-      const pdfs = files.filter(file => file.name.toLowerCase().endsWith(".pdf"));
-      const resources = files.filter(file => /\.(md|ppt|pptx)$/i.test(file.name));
+      const fileKind = file => String(file.name || file.path || "").toLowerCase();
+      const pdfs = files.filter(file => fileKind(file).endsWith(".pdf"));
+      const resources = files.filter(file => /\.(md|ppt|pptx)$/i.test(fileKind(file)));
       const current = this.plugin.store.get(this.selectedPath);
       const internal = !files.length ? internalFile(event) : null;
       if (!pdfs.length && !resources.length && !internal) return new Notice("支持拖入 PDF、Markdown、PPT 和 PPTX 文件");
