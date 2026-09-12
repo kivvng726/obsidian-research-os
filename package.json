@@ -1,6 +1,6 @@
 {
   "name": "obsidian-research-os",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": false,
   "description": "An AI-assisted literature library, reading workspace, research synthesis system, and adaptive visual theme for Obsidian.",
   "repository": {

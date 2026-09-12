@@ -456,7 +456,6 @@ ${candidate.summary}
           project: { folder: "02 Projects", status: "planning", prefix: "" }
         }[type];
         if (!config) throw new Error("\u4E0D\u652F\u6301\u7684\u5BF9\u8C61\u7C7B\u578B");
-        await this.ensureFolder(config.folder);
         const safe = title.replace(/[\\/:*?\"<>|]/g, "-").trim();
         const path = await this.uniquePath(`${config.folder}/${config.prefix}${safe}.md`);
         const projectYaml = project ? `
@@ -505,19 +504,11 @@ tags: []
         await this.load();
         return file;
       }
-      async ensureFolder(path) {
-        const parts = String(path || "").split("/").filter(Boolean);
-        let current = "";
-        for (const part of parts) {
-          current = current ? `${current}/${part}` : part;
-          if (!this.app.vault.getAbstractFileByPath(current)) await this.app.vault.createFolder(current);
-        }
-      }
       async importPdf(source) {
         const bytes = await source.arrayBuffer();
         const metadata = this.extractPdfMetadata(bytes, source.name);
         const folder = "09 Attachments";
-        await this.ensureFolder(folder);
+        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
         const attachmentPath = await this.uniqueAttachmentPath(`${folder}/${source.name}`);
         await this.app.vault.createBinary(attachmentPath, bytes);
         const note = await this.create("literature", metadata.title, "", {
@@ -565,7 +556,7 @@ tags: []
         let targetPath = existingPath;
         if (!targetPath) {
           const folder = isMarkdown ? await this.ensureReadingFolder(item) : "09 Attachments";
-          await this.ensureFolder(folder);
+          if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
           targetPath = await this.uniqueAttachmentPath(`${folder}/${name}`);
           if (isMarkdown) {
             const text = typeof source.text === "function" ? await source.text() : new TextDecoder().decode(await source.arrayBuffer());
@@ -587,10 +578,11 @@ tags: []
       }
       async ensureReadingFolder(item) {
         const root = "04 Notes/Reading Notes";
-        await this.ensureFolder(root);
+        if (!this.app.vault.getAbstractFileByPath("04 Notes")) await this.app.vault.createFolder("04 Notes");
+        if (!this.app.vault.getAbstractFileByPath(root)) await this.app.vault.createFolder(root);
         const safe = item.file.basename.replace(/[\\/:*?"<>|]/g, "-").trim();
         const folder = `${root}/${safe}`;
-        await this.ensureFolder(folder);
+        if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
         return folder;
       }
       async createLearningNote(item, kind = "learning") {
@@ -1475,7 +1467,6 @@ var require_research_view = __commonJS({
         this.selectedPath = null;
         this.aiBusy = false;
         this.paperGraph = null;
-        this.searchTimer = null;
         this.progressFilter = "all";
         this.progressSuggestions = [];
         this.libraryTopic = "all";
@@ -1496,7 +1487,6 @@ var require_research_view = __commonJS({
         this.render();
       }
       async onClose() {
-        clearTimeout(this.searchTimer);
         if (this.paperGraph) {
           this.paperGraph.destroy();
           this.paperGraph = null;
@@ -1518,7 +1508,6 @@ var require_research_view = __commonJS({
         root.addClass("research-os-host");
         root.removeClass("ros-skin-forest");
         root.removeClass("ros-skin-crt");
-        root.addClass("ros-skin-forest");
         this.applyForestBackground();
         const shell = root.createDiv("ros-shell ros-simple-shell");
         this.installFileDrop(shell);
@@ -1581,9 +1570,18 @@ var require_research_view = __commonJS({
         const search = searchWrap.createEl("input", { attr: { type: "search", placeholder: "\u641C\u7D22\u6807\u9898\u3001\u4F5C\u8005\u6216\u5206\u7C7B\u2026", "aria-label": "\u641C\u7D22\u6587\u732E" } });
         search.value = this.query;
         search.addEventListener("input", (e) => {
-          this.query = e.target.value;
-          clearTimeout(this.searchTimer);
-          this.searchTimer = setTimeout(() => this.render(), 150);
+          const target = e.target;
+          this.query = target.value;
+          window.clearTimeout(this.searchRenderTimer);
+          this.searchRenderTimer = window.setTimeout(() => {
+            const cursor = target.selectionStart ?? this.query.length;
+            this.render();
+            const next = this.contentEl.querySelector(".ros-search input");
+            if (next) {
+              next.focus();
+              next.setSelectionRange(cursor, cursor);
+            }
+          }, 120);
         });
         const capture = tools.createEl("button", { cls: "ros-primary-btn" });
         const plus = capture.createSpan();
@@ -1614,7 +1612,7 @@ var require_research_view = __commonJS({
         intro.createEl("p", { text: `\u5173\u6CE8\uFF1A${this.plugin.ai.settings.interests} \xB7 \u4E0A\u6B21\u66F4\u65B0\uFF1A${last}` });
         if (!this.plugin.ai.isConfigured()) {
           const warning = intro.createDiv("ros-ai-warning");
-          warning.createSpan({ text: "\u5C1A\u672A\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\u3002\u53EF\u4EE5\u6293\u53D6\u8BBA\u6587\uFF0C\u4F46\u65E0\u6CD5\u751F\u6210\u4E2A\u6027\u5316\u63A8\u8350\u7406\u7531\u4E0E\u5BFC\u8BFB\u3002" });
+          warning.createSpan({ text: "\u5C1A\u672A\u914D\u7F6E DeepSeek API Key\u3002\u53EF\u4EE5\u6293\u53D6\u8BBA\u6587\uFF0C\u4F46\u65E0\u6CD5\u751F\u6210\u4E2A\u6027\u5316\u63A8\u8350\u7406\u7531\u4E0E\u5BFC\u8BFB\u3002" });
           const open = warning.createEl("button", { text: "\u6253\u5F00\u8BBE\u7F6E" });
           open.addEventListener("click", () => {
             this.app.setting.open();
@@ -1697,9 +1695,8 @@ var require_research_view = __commonJS({
           event.preventDefault();
           shell.removeClass("is-pdf-dragging");
           const files = Array.from(event.dataTransfer.files || []);
-          const fileKind = (file) => String(file.name || file.path || "").toLowerCase();
-          const pdfs = files.filter((file) => fileKind(file).endsWith(".pdf"));
-          const resources = files.filter((file) => /\.(md|ppt|pptx)$/i.test(fileKind(file)));
+          const pdfs = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
+          const resources = files.filter((file) => /\.(md|ppt|pptx)$/i.test(file.name));
           const current = this.plugin.store.get(this.selectedPath);
           const internal = !files.length ? internalFile(event) : null;
           if (!pdfs.length && !resources.length && !internal) return new Notice2("\u652F\u6301\u62D6\u5165 PDF\u3001Markdown\u3001PPT \u548C PPTX \u6587\u4EF6");
@@ -1781,7 +1778,7 @@ var require_research_view = __commonJS({
             this.render();
           });
         });
-        const organize = controls.createEl("button", { cls: "ros-secondary-btn" });
+        const organize = controls.createEl("button", { cls: ["ros-secondary-btn", "ros-ai-library-action"] });
         const organizeIcon = organize.createSpan();
         setIcon(organizeIcon, "sparkles");
         organize.createSpan({ text: "AI \u91CD\u6574\u6587\u732E\u5E93" });
@@ -1840,7 +1837,7 @@ var require_research_view = __commonJS({
         group.items.forEach((item) => this.renderLiteratureRow(section, item, false));
       }
       async organizeLibrary(button) {
-        if (!this.plugin.ai.isConfigured()) return new Notice2("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
+        if (!this.plugin.ai.isConfigured()) return new Notice2("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
         let papers = this.plugin.store.byType("literature");
         if (!papers.length) return new Notice2("\u6587\u732E\u5E93\u4E2D\u8FD8\u6CA1\u6709\u8BBA\u6587");
         button.disabled = true;
@@ -2089,7 +2086,7 @@ var require_research_view = __commonJS({
         head.createDiv({ text: [item.authors.join(", "), item.year, item.journal].filter(Boolean).join(" \xB7 ") || "\u5C1A\u672A\u8865\u5145\u4F5C\u8005\u4E0E\u51FA\u7248\u4FE1\u606F", cls: "ros-reader-meta" });
         const insight = this.plugin.store.getPaperInsight(item.path);
         const headActions = head.createDiv("ros-reader-head-actions");
-        const extract = headActions.createEl("button", { cls: "ros-secondary-btn" });
+        const extract = headActions.createEl("button", { cls: ["ros-secondary-btn", "ros-ai-extract-action"] });
         const extractIcon = extract.createSpan();
         setIcon(extractIcon, "sprout");
         extract.createSpan({ text: insight ? "\u91CD\u65B0\u63D0\u70BC\u672C\u7BC7\u8BBA\u6587" : "\u751F\u6210\u5341\u95EE\u63D0\u70BC" });
@@ -2149,7 +2146,7 @@ var require_research_view = __commonJS({
         head.createSpan({ text: insight ? `${insight.extractionLevel === "notes" ? "\u7B14\u8BB0\u589E\u5F3A" : insight.extractionLevel === "abstract" ? "\u6458\u8981\u7EA7" : "\u5143\u6570\u636E\u7EA7"} \xB7 ${insight.generatedAt ? new Date(insight.generatedAt).toLocaleDateString() : "\u5DF2\u751F\u6210"}` : "\u5C1A\u672A\u751F\u6210" });
         if (!insight) {
           const empty = panel.createDiv("ros-insight-empty");
-          empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "\u7CFB\u7EDF\u4F1A\u4F9D\u636E\u8BBA\u6587\u6750\u6599\u56DE\u7B54\u5341\u4E2A\u7814\u7A76\u95EE\u9898\uFF0C\u5E76\u751F\u6210\u53EF\u4FDD\u7559\u7684\u5019\u9009\u8FDB\u5C55\u3002" : "\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\u540E\uFF0C\u53EF\u4EE5\u81EA\u52A8\u751F\u6210\u6BCF\u7BC7\u8BBA\u6587\u7684\u5341\u95EE\u63D0\u70BC\u3002" });
+          empty.createEl("p", { text: this.plugin.ai.isConfigured() ? "\u7CFB\u7EDF\u4F1A\u4F9D\u636E\u8BBA\u6587\u6750\u6599\u56DE\u7B54\u5341\u4E2A\u7814\u7A76\u95EE\u9898\uFF0C\u5E76\u751F\u6210\u53EF\u4FDD\u7559\u7684\u5019\u9009\u8FDB\u5C55\u3002" : "\u914D\u7F6E DeepSeek API Key \u540E\uFF0C\u53EF\u4EE5\u81EA\u52A8\u751F\u6210\u6BCF\u7BC7\u8BBA\u6587\u7684\u5341\u95EE\u63D0\u70BC\u3002" });
           const button = empty.createEl("button", { text: "\u751F\u6210\u5341\u95EE\u63D0\u70BC", cls: "ros-primary-btn" });
           button.disabled = !this.plugin.ai.isConfigured();
           button.addEventListener("click", () => this.generatePaperInsight(paper, button, true));
@@ -2243,8 +2240,8 @@ var require_research_view = __commonJS({
       renderPaperAI(reader, item) {
         const panel = reader.createEl("section", { cls: "ros-simple-card ros-paper-ai" });
         const head = panel.createDiv("ros-section-heading");
-        head.createEl("h2", { text: "AI \u8BBA\u6587\u52A9\u624B" });
-        head.createSpan({ text: this.plugin.ai.model() });
+        head.createEl("h2", { text: "DeepSeek \u8BBA\u6587\u52A9\u624B" });
+        head.createSpan({ text: this.plugin.ai.settings.deepseekModel });
         const guide = panel.createEl("button", { text: "\u91CD\u65B0\u751F\u6210 AI \u5BFC\u8BFB", cls: "ros-secondary-btn" });
         guide.disabled = this.aiBusy;
         guide.addEventListener("click", async () => {
@@ -2592,38 +2589,10 @@ var require_theme_service = __commonJS({
         this.plugin = plugin;
         this.app = plugin.app;
         this.previewTheme = null;
-        this.persistencePath = "09 Attachments/.research-os-theme.json";
       }
       async initialize() {
         const settings = this.plugin.ai.settings;
         let changed = false;
-        let restoredFromPersistence = false;
-        try {
-          const persistedFile = this.app.vault.getAbstractFileByPath(this.persistencePath);
-          if (persistedFile instanceof TFile) {
-            const persisted = JSON.parse(await this.app.vault.read(persistedFile));
-            restoredFromPersistence = true;
-            if (persisted?.activeThemeId) settings.activeThemeId = persisted.activeThemeId;
-            if (persisted?.customTheme) settings.customTheme = persisted.customTheme;
-          }
-        } catch (error) {
-          console.warn("Research OS theme restore failed", error);
-        }
-        if (settings.customTheme?.backgroundPath) {
-          const restoredPath = this.resolveStoredBackgroundPath(settings.customTheme.backgroundPath);
-          if (restoredPath && restoredPath !== settings.customTheme.backgroundPath) {
-            settings.customTheme = { ...settings.customTheme, backgroundPath: restoredPath };
-            changed = true;
-          }
-        }
-        if (!restoredFromPersistence && !settings.customTheme) {
-          const fallback = this.findCustomBackgroundFile();
-          if (fallback instanceof TFile) {
-            settings.customTheme = await this.analyzePath(fallback.path);
-            settings.activeThemeId = CUSTOM_THEME_ID;
-            changed = true;
-          }
-        }
         if (Object.prototype.hasOwnProperty.call(settings, "backgroundImagePath")) {
           delete settings.backgroundImagePath;
           changed = true;
@@ -2632,51 +2601,25 @@ var require_theme_service = __commonJS({
           settings.activeThemeId = FOREST_THEME_ID;
           changed = true;
         }
-        if (settings.activeThemeId === CUSTOM_THEME_ID && (!this.isValidCustom(settings.customTheme) || !(this.app.vault.getAbstractFileByPath(settings.customTheme.backgroundPath) instanceof TFile))) {
-          settings.activeThemeId = FOREST_THEME_ID;
+        // A valid saved custom theme is the user's persistent choice. Do not
+        // gate restoration on vault file identity checks: Obsidian can expose
+        // a newly loaded file through a different object during startup.
+        if (this.isValidCustom(settings.customTheme)) {
+          settings.activeThemeId = CUSTOM_THEME_ID;
           changed = true;
         }
         if (this.isValidCustom(settings.customTheme) && settings.customTheme.analysis && !settings.customTheme.tokens["--skin-on-accent"]) {
           const generated = generateTheme(settings.customTheme.analysis, settings.customTheme.controls);
-          settings.customTheme = { ...settings.customTheme, ...generated };
+          settings.customTheme = { ...settings.customTheme, id: CUSTOM_THEME_ID, ...generated };
+          changed = true;
+        } else if (this.isValidCustom(settings.customTheme) && settings.customTheme.id !== CUSTOM_THEME_ID) {
+          settings.customTheme = { ...settings.customTheme, id: CUSTOM_THEME_ID };
           changed = true;
         }
         if (changed) await this.plugin.ai.save();
-        await this.persist();
-      }
-      async persist() {
-        try {
-          const folder = this.persistencePath.split("/").slice(0, -1).join("/");
-          if (!this.app.vault.getAbstractFileByPath(folder)) await this.ensureFolder(folder);
-          const content = JSON.stringify({
-            activeThemeId: this.plugin.ai.settings.activeThemeId,
-            customTheme: this.plugin.ai.settings.customTheme || null
-          });
-          const existing = this.app.vault.getAbstractFileByPath(this.persistencePath);
-          if (existing instanceof TFile) await this.app.vault.modify(existing, content);
-          else await this.app.vault.create(this.persistencePath, content);
-        } catch (error) {
-          console.warn("Research OS theme persistence failed", error);
-        }
       }
       isValidCustom(theme) {
         return Boolean(theme && theme.backgroundPath && theme.tokens && theme.controls);
-      }
-      resolveStoredBackgroundPath(path) {
-        const normalized = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
-        if (normalized && this.app.vault.getAbstractFileByPath(normalized) instanceof TFile) return normalized;
-        const marker = "09 Attachments/Research OS Themes/";
-        const markerIndex = normalized.indexOf(marker);
-        if (markerIndex >= 0) {
-          const vaultPath = normalized.slice(markerIndex);
-          if (this.app.vault.getAbstractFileByPath(vaultPath) instanceof TFile) return vaultPath;
-        }
-        const fallback = this.findCustomBackgroundFile();
-        return fallback?.path || normalized;
-      }
-      findCustomBackgroundFile() {
-        const folder = this.app.vault.getAbstractFileByPath("09 Attachments/Research OS Themes");
-        return folder?.children?.find((file) => file instanceof TFile && /^custom-background\./i.test(file.name)) || null;
       }
       get activeThemeId() {
         return this.plugin.ai.settings.activeThemeId || FOREST_THEME_ID;
@@ -2710,10 +2653,6 @@ var require_theme_service = __commonJS({
         } else {
           this.previewTheme = await this.analyzePath(path, { ...current?.controls || DEFAULT_CONTROLS, locked: false });
         }
-        this.plugin.ai.settings.customTheme = this.previewTheme;
-        this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
-        await this.plugin.ai.save();
-        await this.persist();
         this.plugin.refreshViews();
         return this.previewTheme;
       }
@@ -2778,11 +2717,10 @@ var require_theme_service = __commonJS({
       }
       async applyCustom() {
         if (!this.isValidCustom(this.previewTheme || this.customTheme)) throw new Error("\u8FD8\u6CA1\u6709\u53EF\u4EE5\u5E94\u7528\u7684\u81EA\u5B9A\u4E49\u76AE\u80A4");
-        this.plugin.ai.settings.customTheme = this.previewTheme || this.customTheme;
+        this.plugin.ai.settings.customTheme = { ...(this.previewTheme || this.customTheme), id: CUSTOM_THEME_ID };
         this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
         this.previewTheme = null;
         await this.plugin.ai.save();
-        await this.persist();
         this.plugin.refreshViews();
       }
       cancelPreview() {
@@ -2793,7 +2731,6 @@ var require_theme_service = __commonJS({
         this.previewTheme = null;
         this.plugin.ai.settings.activeThemeId = FOREST_THEME_ID;
         await this.plugin.ai.save();
-        await this.persist();
         this.plugin.refreshViews();
       }
       async deleteCustom() {
@@ -2801,22 +2738,26 @@ var require_theme_service = __commonJS({
         this.plugin.ai.settings.customTheme = null;
         this.plugin.ai.settings.activeThemeId = FOREST_THEME_ID;
         await this.plugin.ai.save();
-        await this.persist();
         this.plugin.refreshViews();
       }
       resolveTheme() {
         if (this.previewTheme) return this.previewTheme;
-        if (this.activeThemeId === CUSTOM_THEME_ID && this.isValidCustom(this.customTheme) && this.app.vault.getAbstractFileByPath(this.customTheme.backgroundPath) instanceof TFile) return this.customTheme;
+        if (this.activeThemeId === CUSTOM_THEME_ID && this.isValidCustom(this.customTheme)) return this.customTheme;
         return FOREST_ORIGINAL_THEME;
       }
       applyTo(root) {
         const theme = this.resolveTheme();
         root.removeClass("ros-theme-custom");
+        root.removeClass("ros-skin-forest");
+        root.removeClass("ros-skin-crt");
         this.clearTokens(root);
         const background = this.app.vault.getAbstractFileByPath(theme.backgroundPath) || this.app.vault.getAbstractFileByPath("forest.jpg");
-        const backgroundUrl = background instanceof TFile ? this.app.vault.getResourcePath(background) : this.app.vault.adapter.getResourcePath(".obsidian/plugins/research-os/forest.jpg");
+        const backgroundUrl = background && typeof background.path === "string" ? this.app.vault.getResourcePath(background) : this.app.vault.adapter.getResourcePath(".obsidian/plugins/research-os/forest.jpg");
         root.style.setProperty("--ros-forest-image", `url("${backgroundUrl}")`);
-        if (theme.id !== CUSTOM_THEME_ID) return;
+        if (theme.id !== CUSTOM_THEME_ID) {
+          root.addClass("ros-skin-forest");
+          return;
+        }
         root.addClass("ros-theme-custom");
         Object.entries(theme.tokens || {}).forEach(([name, value]) => root.style.setProperty(name, value));
         const aliases = {
@@ -2989,13 +2930,12 @@ var require_ai_service = __commonJS({
     var DEFAULT_AI_SETTINGS = {
       activeThemeId: "forest-original",
       customTheme: null,
-      aiProvider: "deepseek",
-      aiApiKey: "",
-      aiBaseUrl: "",
-      aiModel: "",
       deepseekApiKey: "",
       deepseekBaseUrl: "https://api.deepseek.com",
       deepseekModel: "deepseek-v4-flash",
+      apiKey: "",
+      apiBaseUrl: "",
+      apiModel: "",
       weeklyEnabled: true,
       autoInsightEnabled: true,
       weeklyLimit: 8,
@@ -3004,106 +2944,6 @@ var require_ai_service = __commonJS({
       interests: "large language model, LLM agent, multi-agent, agent memory, tool use, planning, RAG, model alignment, agent evaluation",
       discoveries: [],
       chats: {}
-    };
-    var AI_PROVIDERS = {
-      deepseek: {
-        name: "DeepSeek",
-        baseUrl: "https://api.deepseek.com",
-        model: "deepseek-v4-flash",
-        models: {
-          "deepseek-v4-flash": "DeepSeek V4 Flash\uFF08\u63A8\u8350\uFF09",
-          "deepseek-v4-pro": "DeepSeek V4 Pro\uFF08\u6DF1\u5EA6\u7814\u7A76\uFF09",
-          "deepseek-chat": "deepseek-chat",
-          "deepseek-reasoner": "deepseek-reasoner"
-        },
-        supportsThinking: true,
-        supportsJsonMode: true
-      },
-      openai: {
-        name: "OpenAI / GPT",
-        baseUrl: "https://api.openai.com/v1",
-        model: "gpt-5.2",
-        models: {
-          "gpt-5.2": "GPT-5.2\uFF08\u63A8\u8350\uFF09",
-          "gpt-4o-mini": "GPT-4o mini",
-          "gpt-4o": "GPT-4o",
-          "gpt-4.1-mini": "GPT-4.1 mini",
-          "gpt-4.1": "GPT-4.1"
-        },
-        supportsJsonMode: true
-      },
-      kimi: {
-        name: "Kimi / Moonshot",
-        baseUrl: "https://api.moonshot.ai/v1",
-        model: "kimi-k2.6",
-        models: {
-          "kimi-k2.6": "kimi-k2.6\uFF08\u63A8\u8350\uFF09",
-          "kimi-k3": "kimi-k3",
-          "moonshot-v1-8k": "moonshot-v1-8k",
-          "moonshot-v1-32k": "moonshot-v1-32k",
-          "moonshot-v1-128k": "moonshot-v1-128k"
-        },
-        supportsJsonMode: true
-      },
-      openrouter: {
-        name: "OpenRouter",
-        baseUrl: "https://openrouter.ai/api/v1",
-        model: "~openai/gpt-latest",
-        models: {
-          "~openai/gpt-latest": "~openai/gpt-latest\uFF08\u63A8\u8350\uFF09",
-          "openai/gpt-4o-mini": "openai/gpt-4o-mini",
-          "anthropic/claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
-          "google/gemini-flash-1.5": "google/gemini-flash-1.5",
-          "deepseek/deepseek-chat": "deepseek/deepseek-chat"
-        },
-        supportsJsonMode: true
-      },
-      siliconflow: {
-        name: "\u7845\u57FA\u6D41\u52A8 SiliconFlow",
-        baseUrl: "https://api.siliconflow.cn/v1",
-        model: "deepseek-ai/DeepSeek-V3.2",
-        models: {
-          "deepseek-ai/DeepSeek-V3.2": "DeepSeek-V3.2\uFF08\u63A8\u8350\uFF09",
-          "deepseek-ai/DeepSeek-R1": "DeepSeek-R1",
-          "Qwen/Qwen3.6-27B": "Qwen3.6-27B",
-          "Qwen/Qwen2.5-72B-Instruct": "Qwen2.5-72B-Instruct"
-        },
-        supportsJsonMode: true
-      },
-      zhipu: {
-        name: "\u667A\u8C31 AI / GLM",
-        baseUrl: "https://open.bigmodel.cn/api/paas/v4",
-        model: "glm-5.2",
-        models: {
-          "glm-5.2": "GLM-5.2\uFF08\u63A8\u8350\uFF09",
-          "glm-5.1": "GLM-5.1",
-          "glm-4.7": "GLM-4.7",
-          "glm-4.5": "GLM-4.5"
-        },
-        supportsJsonMode: true,
-        supportsThinking: true
-      },
-      anthropic: {
-        name: "Anthropic Claude",
-        baseUrl: "https://api.anthropic.com",
-        model: "claude-sonnet-5",
-        models: {
-          "claude-sonnet-5": "Claude Sonnet 5\uFF08\u63A8\u8350\uFF09",
-          "claude-opus-5": "Claude Opus 5",
-          "claude-opus-4-8": "Claude Opus 4.8",
-          "claude-sonnet-4-6": "Claude Sonnet 4.6",
-          "claude-haiku-4-5-20251001": "Claude Haiku 4.5"
-        },
-        apiType: "anthropic",
-        supportsJsonMode: false
-      },
-      custom: {
-        name: "\u81EA\u5B9A\u4E49 OpenAI \u517C\u5BB9\u63A5\u53E3",
-        baseUrl: "",
-        model: "",
-        models: {},
-        supportsJsonMode: true
-      }
     };
     var AIService2 = class {
       constructor(plugin) {
@@ -3114,92 +2954,45 @@ var require_ai_service = __commonJS({
       }
       async load() {
         this.settings = { ...DEFAULT_AI_SETTINGS, ...await this.plugin.loadData() || {} };
-        if (!this.settings.aiApiKey && this.settings.deepseekApiKey) this.settings.aiApiKey = this.settings.deepseekApiKey;
-        if (!this.settings.aiBaseUrl && this.settings.deepseekBaseUrl) this.settings.aiBaseUrl = this.settings.deepseekBaseUrl;
-        if (!this.settings.aiModel && this.settings.deepseekModel) this.settings.aiModel = this.settings.deepseekModel;
+        this.settings.apiKey = this.settings.apiKey || this.settings.deepseekApiKey;
+        this.settings.apiBaseUrl = this.settings.apiBaseUrl || this.settings.deepseekBaseUrl;
+        this.settings.apiModel = this.settings.apiModel || this.settings.deepseekModel;
       }
       async save() {
         await this.plugin.saveData(this.settings);
       }
-      provider() {
-        return AI_PROVIDERS[this.settings.aiProvider] || AI_PROVIDERS.deepseek;
-      }
-      providerName() {
-        return this.provider().name;
-      }
-      baseUrl() {
-        return (this.settings.aiBaseUrl || this.provider().baseUrl || "").replace(/\/$/, "");
-      }
-      model() {
-        return this.settings.aiModel || this.provider().model;
-      }
       isConfigured() {
-        return Boolean(this.settings.aiApiKey.trim() && this.baseUrl() && this.model());
+        return Boolean(String(this.settings.apiKey || "").trim());
       }
-      async setProvider(providerId) {
-        const provider = AI_PROVIDERS[providerId] || AI_PROVIDERS.deepseek;
-        this.settings.aiProvider = providerId in AI_PROVIDERS ? providerId : "deepseek";
-        this.settings.aiBaseUrl = provider.baseUrl;
-        this.settings.aiModel = provider.model;
-        await this.save();
+      get apiEndpoint() {
+        const base = String(this.settings.apiBaseUrl || "").trim().replace(/\/+$/, "");
+        if (/\/chat\/completions$/i.test(base)) return base;
+        return `${base}/chat/completions`;
       }
       async chat(messages, options = {}) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199\u6A21\u578B\u670D\u52A1\u3001API Key\u3001Base URL \u548C\u6A21\u578B\u540D");
-        const provider = this.provider();
-        if (provider.apiType === "anthropic") return this.chatAnthropic(messages, options);
-        const body = {
-          model: this.model(),
-          messages,
-          stream: false,
-          temperature: options.temperature ?? 0.3,
-          max_tokens: options.maxTokens ?? 2600
-        };
-        if (provider.supportsThinking) body.thinking = { type: options.thinking ? "enabled" : "disabled" };
-        if (options.json && provider.supportsJsonMode !== false) body.response_format = { type: "json_object" };
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u5728\u8BBE\u7F6E \u2192 Research OS AI \u4E2D\u586B\u5199 API Key");
         const response = await requestUrl({
-          url: `${this.baseUrl()}/chat/completions`,
+          url: this.apiEndpoint,
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.settings.aiApiKey.trim()}`
+            Authorization: `Bearer ${String(this.settings.apiKey).trim()}`
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            model: this.settings.apiModel,
+            messages,
+            stream: false,
+            temperature: options.temperature ?? 0.3,
+            max_tokens: options.maxTokens ?? 2600,
+            ...options.json ? { response_format: { type: "json_object" } } : {}
+          }),
           throw: false
         });
         if (response.status < 200 || response.status >= 300) {
           const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
-          throw new Error(`${this.providerName()} \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
+          throw new Error(`AI \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
         }
         return response.json?.choices?.[0]?.message?.content || "";
-      }
-      async chatAnthropic(messages, options = {}) {
-        const system = messages.filter((message) => message.role === "system").map((message) => message.content).join("\n\n");
-        const conversation = messages.filter((message) => message.role !== "system").map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: String(message.content || "")
-        }));
-        const body = {
-          model: this.model(),
-          max_tokens: options.maxTokens ?? 2600,
-          messages: conversation.length ? conversation : [{ role: "user", content: "\u8FDE\u63A5\u6D4B\u8BD5" }],
-          ...system ? { system } : {}
-        };
-        const response = await requestUrl({
-          url: `${this.baseUrl()}/v1/messages`,
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": this.settings.aiApiKey.trim(),
-            "anthropic-version": "2023-06-01"
-          },
-          body: JSON.stringify(body),
-          throw: false
-        });
-        if (response.status < 200 || response.status >= 300) {
-          const message = response.json?.error?.message || response.text || `HTTP ${response.status}`;
-          throw new Error(`${this.providerName()} \u8BF7\u6C42\u5931\u8D25\uFF1A${message}`);
-        }
-        return (response.json?.content || []).map((part) => part?.text || "").join("").trim();
       }
       async testConnection() {
         const text = await this.chat([
@@ -3268,7 +3061,7 @@ var require_ai_service = __commonJS({
         try {
           parsed = JSON.parse(content);
         } catch {
-          throw new Error("AI \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
+          throw new Error("DeepSeek \u8FD4\u56DE\u7684\u63A8\u8350\u7ED3\u679C\u65E0\u6CD5\u89E3\u6790");
         }
         const byId = new Map((parsed.papers || []).map((x) => [x.id, x]));
         return papers.map((p) => ({ ...p, ...byId.get(p.id) || { score: 30, reason: "\u4E0E\u5173\u6CE8\u5173\u952E\u8BCD\u5339\u914D", readingMode: "\u901F\u8BFB" } }));
@@ -3317,7 +3110,7 @@ var require_ai_service = __commonJS({
 
 ## AI \u5BFC\u8BFB
 
-> \u751F\u6210\u4F9D\u636E\uFF1A\u6807\u9898\u4E0E\u6458\u8981\uFF1B\u6A21\u578B\uFF1A${this.model()}\uFF1B\u65F6\u95F4\uFF1A${(/* @__PURE__ */ new Date()).toLocaleString()}
+> \u751F\u6210\u4F9D\u636E\uFF1A\u6807\u9898\u4E0E\u6458\u8981\uFF1B\u6A21\u578B\uFF1A${this.settings.deepseekModel}\uFF1B\u65F6\u95F4\uFF1A${(/* @__PURE__ */ new Date()).toLocaleString()}
 
 ${guide}
 `;
@@ -3420,7 +3213,7 @@ ${pdfText}`;
         return windows.join("\n\n[\u2026\u8282\u9009\u2026]\n\n").slice(0, 72e3);
       }
       async ensurePaperInsight(paper, force = false) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\uFF0C\u518D\u751F\u6210\u8BBA\u6587\u63D0\u70BC");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key\uFF0C\u518D\u751F\u6210\u8BBA\u6587\u63D0\u70BC");
         if (this.insightJobs.has(paper.path)) return this.insightJobs.get(paper.path);
         const job = (async () => {
           await this.plugin.store.load();
@@ -3451,7 +3244,7 @@ JSON \u683C\u5F0F\uFF1A{"answers":{"q1":string,"q2":string,"q3":string,"q4":stri
 
 ${context.material}` }
           ], { json: true, thinking: true, maxTokens: 5200 });
-          const parsed = this.parseJsonResponse(response, "AI \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
+          const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
           if (!parsed.answers || typeof parsed.answers !== "object") throw new Error("\u8BBA\u6587\u63D0\u70BC\u7F3A\u5C11\u5341\u95EE\u7B54\u6848");
           return this.plugin.store.savePaperInsight(paper, {
             answers: parsed.answers,
@@ -3461,7 +3254,7 @@ ${context.material}` }
             extractionLabel: context.extractionLabel,
             contentHash: context.contentHash,
             promptVersion: "paper-insight-v2",
-            model: this.model()
+            model: this.settings.deepseekModel
           });
         })().finally(() => this.insightJobs.delete(paper.path));
         this.insightJobs.set(paper.path, job);
@@ -3522,7 +3315,7 @@ ${context.material}` }
         })).filter((candidate) => candidate.title && candidate.summary);
       }
       async synthesizeResearchProgress(papers, goal = "") {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
         if (!Array.isArray(papers) || papers.length < 2) throw new Error("\u8BF7\u81F3\u5C11\u9009\u62E9\u4E24\u7BC7\u8BBA\u6587");
         const selected = papers.slice(0, 12);
         const materials = [];
@@ -3563,7 +3356,7 @@ ${materials.map((paper, index) => `[P${index + 1}] ${paper.path} \u2014 ${paper.
 ${JSON.stringify(materials)}`
           }
         ], { json: true, thinking: true, maxTokens: 5200 });
-        const parsed = this.parseJsonResponse(response, "AI \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790");
+        const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u7EFC\u5408\u8FDB\u5C55\u65E0\u6CD5\u89E3\u6790");
         if (!parsed.sections?.conclusion) throw new Error("AI \u7EFC\u5408\u7ED3\u679C\u7F3A\u5C11\u5F53\u524D\u7ED3\u8BBA");
         const validPaths = new Set(selected.map((paper) => paper.path));
         parsed.evidence = (parsed.evidence || []).map((item) => ({
@@ -3575,7 +3368,7 @@ ${JSON.stringify(materials)}`
         return parsed;
       }
       async repairPaperMetadata(paper) {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
         let pdf;
         try {
           pdf = await this.plugin.store.extractPdfEvidence(paper, 8);
@@ -3605,7 +3398,7 @@ ${currentNote.slice(0, 8e3)}` }
         };
       }
       async organizeLibraryTaxonomy() {
-        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1");
+        if (!this.isConfigured()) throw new Error("\u8BF7\u5148\u914D\u7F6E DeepSeek API Key");
         await this.plugin.store.load();
         const papers = this.plugin.store.byType("literature");
         if (!papers.length) return [];
@@ -3729,39 +3522,35 @@ ${excerpt}`);
         containerEl.empty();
         containerEl.createEl("h1", { text: "Research OS \u8BBE\u7F6E" });
         renderThemeSettings(containerEl, this.plugin, () => this.display());
-        containerEl.createEl("h2", { text: "AI \u6A21\u578B\u670D\u52A1" });
-        containerEl.createEl("p", { text: "\u652F\u6301 DeepSeek\u3001OpenAI/GPT\u3001Kimi/Moonshot\u3001OpenRouter\u3001\u7845\u57FA\u6D41\u52A8\u3001\u667A\u8C31 GLM\u3001Anthropic Claude\uFF0C\u4EE5\u53CA\u5176\u4ED6 OpenAI \u517C\u5BB9\u63A5\u53E3\u3002API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
-        new Setting(containerEl).setName("\u6A21\u578B\u670D\u52A1").setDesc("\u5207\u6362\u540E\u4F1A\u81EA\u52A8\u586B\u5165\u8BE5\u670D\u52A1\u7684\u9ED8\u8BA4 Base URL \u548C\u6A21\u578B\u540D").addDropdown((dropdown) => dropdown.addOptions(Object.fromEntries(Object.entries(AI_PROVIDERS).map(([id, provider]) => [id, provider.name]))).setValue(this.plugin.ai.settings.aiProvider).onChange(async (value) => {
-          await this.plugin.ai.setProvider(value);
-          this.display();
-        }));
-        new Setting(containerEl).setName("API Key").setDesc(`\u586B\u5199 ${this.plugin.ai.providerName()} \u7684 API Key`).addText((text) => {
+        containerEl.createEl("h2", { text: "OpenAI \u517C\u5BB9 AI" });
+        containerEl.createEl("p", { text: "API Key \u4EC5\u4FDD\u5B58\u5728\u672C\u673A\u63D2\u4EF6 data.json\uFF0C\u4E0D\u5199\u5165\u6587\u732E\u7B14\u8BB0\u3002" });
+        new Setting(containerEl).setName("API Key").setDesc("\u652F\u6301\u4EFB\u610F OpenAI \u517C\u5BB9\u670D\u52A1").addText((text) => {
           text.inputEl.type = "password";
-          text.setPlaceholder("sk-...").setValue(this.plugin.ai.settings.aiApiKey).onChange(async (value) => {
-            this.plugin.ai.settings.aiApiKey = value.trim();
+          text.setPlaceholder("sk-...").setValue(this.plugin.ai.settings.apiKey).onChange(async (value) => {
+            this.plugin.ai.settings.apiKey = value.trim();
+            this.plugin.ai.settings.deepseekApiKey = value.trim();
             await this.plugin.ai.save();
           });
         });
-        new Setting(containerEl).setName("Base URL").setDesc("\u5FC5\u987B\u662F OpenAI-compatible \u63A5\u53E3\u5730\u5740\uFF0C\u4E0D\u8981\u5305\u542B /chat/completions").addText((text) => text.setPlaceholder("https://api.example.com/v1").setValue(this.plugin.ai.baseUrl()).onChange(async (value) => {
-          this.plugin.ai.settings.aiBaseUrl = value.trim();
-          await this.plugin.ai.save();
-        }));
-        const providerModels = this.plugin.ai.provider().models || {};
-        if (Object.keys(providerModels).length) {
-          new Setting(containerEl).setName("\u6A21\u578B").addDropdown((dropdown) => dropdown.addOptions(providerModels).setValue(this.plugin.ai.model()).onChange(async (value) => {
-            this.plugin.ai.settings.aiModel = value;
+        new Setting(containerEl).setName("API Base URL").setDesc("\u4F8B\u5982 https://api.openai.com/v1").addText((text) => {
+          text.setPlaceholder("https://api.deepseek.com").setValue(this.plugin.ai.settings.apiBaseUrl).onChange(async (value) => {
+            this.plugin.ai.settings.apiBaseUrl = value.trim();
+            this.plugin.ai.settings.deepseekBaseUrl = value.trim();
             await this.plugin.ai.save();
-          }));
-        }
-        new Setting(containerEl).setName("\u81EA\u5B9A\u4E49\u6A21\u578B\u540D").setDesc("\u5982\u679C\u4E0B\u62C9\u91CC\u6CA1\u6709\u4F60\u7684\u6A21\u578B\uFF0C\u5728\u8FD9\u91CC\u586B\u5199\u4F1A\u8986\u76D6\u4E0A\u9762\u7684\u9009\u62E9").addText((text) => text.setPlaceholder("model-name").setValue(this.plugin.ai.settings.aiModel).onChange(async (value) => {
-          this.plugin.ai.settings.aiModel = value.trim();
-          await this.plugin.ai.save();
-        }));
+          });
+        });
+        new Setting(containerEl).setName("\u6A21\u578B").setDesc("\u586B\u5199\u670D\u52A1\u5546\u63D0\u4F9B\u7684\u6A21\u578B\u540D").addText((text) => {
+          text.setPlaceholder("deepseek-v4-flash").setValue(this.plugin.ai.settings.apiModel).onChange(async (value) => {
+            this.plugin.ai.settings.apiModel = value.trim();
+            this.plugin.ai.settings.deepseekModel = value.trim();
+            await this.plugin.ai.save();
+          });
+        });
         new Setting(containerEl).setName("\u6D4B\u8BD5\u8FDE\u63A5").addButton((button) => button.setButtonText("\u6D4B\u8BD5").onClick(async () => {
           button.setDisabled(true);
           try {
             await this.plugin.ai.testConnection();
-            new Notice2(`${this.plugin.ai.providerName()} \u8FDE\u63A5\u6210\u529F`);
+            new Notice2("AI \u8FDE\u63A5\u6210\u529F");
           } catch (e) {
             new Notice2(e.message, 8e3);
           } finally {

@@ -1937,6 +1937,276 @@
 .ros-insight-candidate-actions button { min-height: 32px; padding: 0 11px; border: 1px solid var(--ros-border-strong); border-radius: 9px; background: rgba(255,255,255,.06); color: var(--ros-text-2); font-size: 9px; }
 .ros-insight-footer { display: flex; justify-content: flex-end; padding-top: 15px; border-top: 1px solid var(--ros-border); }
 .research-os-host.ros-theme-custom .ros-insight-candidate-actions button:not(.ros-primary-btn) { background: var(--skin-surface) !important; border-color: var(--skin-border) !important; color: var(--skin-text-secondary) !important; }
+
+/* Release polish: keep native Obsidian controls from punching white holes through the forest glass UI. */
+.research-os-host .ros-search input,
+.research-os-host .ros-search input[type="search"],
+.research-os-host .ros-search input[type="search"]:focus,
+.research-os-host .ros-search input[type="search"]:focus-visible {
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  color: var(--ros-text) !important;
+  box-shadow: none !important;
+}
+
+.research-os-host input:not([type="range"]),
+.research-os-host textarea,
+.research-os-host select,
+.ros-capture-modal input,
+.ros-capture-modal textarea,
+.ros-capture-modal select,
+.ros-progress-modal input,
+.ros-progress-modal textarea,
+.ros-progress-modal select,
+.ros-synthesis-modal input:not([type="checkbox"]),
+.ros-synthesis-modal textarea,
+.ros-synthesis-modal select,
+.ros-literature-edit-modal input,
+.ros-literature-edit-modal textarea,
+.ros-literature-edit-modal select {
+  border: 1px solid rgba(239,255,246,.22) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(145deg, rgba(18, 38, 26, .66), rgba(5, 18, 10, .50)) !important;
+  color: var(--ros-text, #f4fff7) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,12,5,.12) !important;
+}
+
+.research-os-host input:not([type="range"]):focus,
+.research-os-host textarea:focus,
+.research-os-host select:focus,
+.ros-capture-modal input:focus,
+.ros-capture-modal textarea:focus,
+.ros-capture-modal select:focus,
+.ros-progress-modal input:focus,
+.ros-progress-modal textarea:focus,
+.ros-progress-modal select:focus,
+.ros-synthesis-modal input:not([type="checkbox"]):focus,
+.ros-synthesis-modal textarea:focus,
+.ros-synthesis-modal select:focus,
+.ros-literature-edit-modal input:focus,
+.ros-literature-edit-modal textarea:focus,
+.ros-literature-edit-modal select:focus {
+  border-color: rgba(185,255,213,.58) !important;
+  background: linear-gradient(145deg, rgba(22, 46, 31, .74), rgba(6, 23, 13, .58)) !important;
+  box-shadow: 0 0 0 3px rgba(169,246,200,.12), inset 0 1px 0 rgba(255,255,255,.14) !important;
+}
+
+.research-os-host input::placeholder,
+.research-os-host textarea::placeholder,
+.ros-capture-modal input::placeholder,
+.ros-capture-modal textarea::placeholder,
+.ros-progress-modal input::placeholder,
+.ros-progress-modal textarea::placeholder,
+.ros-synthesis-modal input::placeholder,
+.ros-synthesis-modal textarea::placeholder,
+.ros-literature-edit-modal input::placeholder,
+.ros-literature-edit-modal textarea::placeholder {
+  color: rgba(232,244,237,.58) !important;
+}
+
+.ros-capture-modal,
+.ros-progress-modal,
+.ros-synthesis-modal,
+.ros-literature-edit-modal,
+.ros-literature-delete-modal {
+  color: var(--ros-text, #f4fff7);
+}
+
+.ros-synthesis-paper-list,
+.ros-synthesis-selection-summary,
+.ros-progress-paper-picker,
+.ros-theme-swatch {
+  border-color: rgba(239,255,246,.20) !important;
+  background: linear-gradient(145deg, rgba(20,39,28,.64), rgba(7,20,12,.48)) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+.ros-progress-paper-choice,
+.ros-synthesis-paper-group + .ros-synthesis-paper-group {
+  border-color: rgba(239,255,246,.14) !important;
+}
+
+.ros-synthesis-actions {
+  background: linear-gradient(180deg, rgba(9,22,14,.08), rgba(9,22,14,.78)) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+}
+
+.ros-synthesis-paper:hover,
+.ros-synthesis-paper.is-selected {
+  background: rgba(229,255,239,.14) !important;
+}
+
+.research-os-host button:disabled,
+.research-os-host .ros-primary-btn:disabled,
+.research-os-host .ros-secondary-btn:disabled,
+.ros-capture-modal button:disabled,
+.ros-progress-modal button:disabled,
+.ros-synthesis-modal button:disabled,
+.ros-literature-edit-modal button:disabled {
+  border-color: rgba(239,255,246,.16) !important;
+  background: rgba(8,23,13,.26) !important;
+  color: rgba(232,244,237,.48) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+  opacity: .72;
+}
+
+.research-os-host .ros-focus-card {
+  border-color: rgba(239,255,246,.26) !important;
+  background: linear-gradient(145deg, rgba(32,55,40,.68), rgba(7,20,12,.54)) !important;
+  color: var(--ros-text) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(130%);
+  backdrop-filter: blur(26px) saturate(130%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 24px 54px rgba(0,12,5,.28) !important;
+}
+
+.research-os-host .ros-focus-card .ros-detail-kind,
+.research-os-host .ros-focus-card h3,
+.research-os-host .ros-focus-card p {
+  color: inherit !important;
+}
+
+.research-os-host .ros-reading-notes-group {
+  border-color: rgba(239,255,246,.18) !important;
+  background: rgba(7,20,12,.20) !important;
+}
+
+.research-os-host .ros-reading-note-row,
+.research-os-host button.ros-reading-note-row,
+.research-os-host .ros-reading-note-row:disabled,
+.research-os-host button.ros-reading-note-row:disabled {
+  border: 1px solid rgba(239,255,246,.14) !important;
+  border-radius: 10px !important;
+  background-color: rgba(8,23,13,.30) !important;
+  background-image: linear-gradient(145deg, rgba(31,53,38,.42), rgba(6,18,10,.34)) !important;
+  color: var(--ros-text-2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
+  backdrop-filter: blur(16px) saturate(125%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 7px 18px rgba(0,12,5,.10) !important;
+  opacity: 1 !important;
+}
+
+.research-os-host .ros-reading-note-row:hover,
+.research-os-host button.ros-reading-note-row:hover {
+  border-color: rgba(190,255,216,.38) !important;
+  background-color: rgba(35,60,43,.44) !important;
+  background-image: linear-gradient(145deg, rgba(49,79,57,.48), rgba(10,28,16,.40)) !important;
+  color: var(--ros-text) !important;
+}
+
+.research-os-host .ros-reading-note-row:disabled,
+.research-os-host button.ros-reading-note-row:disabled {
+  color: rgba(232,244,237,.42) !important;
+  cursor: default;
+}
+
+.research-os-host .ros-reading-note-row + .ros-reading-note-row {
+  margin-top: 8px;
+}
+
+.research-os-host .ros-reading-note-row > span,
+.research-os-host .ros-reading-note-row strong {
+  color: inherit !important;
+}
+
+.research-os-host .ros-reading-note-row div span {
+  color: rgba(232,244,237,.46) !important;
+}
+
+.research-os-host button.ros-secondary-btn:disabled,
+.research-os-host button.ros-primary-btn:disabled,
+.research-os-host button.mod-cta:disabled,
+.research-os-host .ros-reader-head-actions button.ros-secondary-btn:disabled,
+.research-os-host .ros-library-controls button.ros-secondary-btn:disabled,
+.research-os-host .ros-paper-ai button.ros-secondary-btn:disabled {
+  border-color: rgba(239,255,246,.20) !important;
+  background-color: rgba(8,23,13,.34) !important;
+  background-image: linear-gradient(145deg, rgba(33,57,41,.46), rgba(6,18,10,.38)) !important;
+  color: rgba(232,244,237,.58) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,12,5,.12) !important;
+  opacity: .86 !important;
+}
+
+.research-os-host button.ros-secondary-btn:disabled svg,
+.research-os-host button.ros-primary-btn:disabled svg,
+.research-os-host button.mod-cta:disabled svg,
+.research-os-host .ros-reader-head-actions button.ros-secondary-btn:disabled svg,
+.research-os-host .ros-library-controls button.ros-secondary-btn:disabled svg,
+.research-os-host .ros-paper-ai button.ros-secondary-btn:disabled svg {
+  color: rgba(190,255,216,.46) !important;
+}
+
+.research-os-host button.ros-secondary-btn:disabled span,
+.research-os-host button.ros-primary-btn:disabled span,
+.research-os-host button.mod-cta:disabled span,
+.research-os-host .ros-reader-head-actions button.ros-secondary-btn:disabled span,
+.research-os-host .ros-library-controls button.ros-secondary-btn:disabled span,
+.research-os-host .ros-paper-ai button.ros-secondary-btn:disabled span {
+  color: inherit !important;
+}
+
+/* AI action buttons: keep Obsidian's native button variables from replacing the glass surface. */
+.research-os-host button.ros-ai-library-action,
+.research-os-host button.ros-ai-extract-action {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 1px solid rgba(220,255,234,.28) !important;
+  background: linear-gradient(145deg, rgba(53,82,59,.62), rgba(9,25,15,.52)) !important;
+  background-color: rgba(15,35,21,.52) !important;
+  background-image: linear-gradient(145deg, rgba(53,82,59,.62), rgba(9,25,15,.52)) !important;
+  color: rgba(240,255,245,.92) !important;
+  -webkit-text-fill-color: rgba(240,255,245,.92) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-backdrop-filter: blur(18px) saturate(130%) !important;
+  backdrop-filter: blur(18px) saturate(130%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 7px 18px rgba(0,10,4,.14) !important;
+}
+
+.research-os-host button.ros-ai-library-action:hover,
+.research-os-host button.ros-ai-extract-action:hover,
+.research-os-host button.ros-ai-library-action:focus-visible,
+.research-os-host button.ros-ai-extract-action:focus-visible {
+  border-color: rgba(220,255,234,.54) !important;
+  background: linear-gradient(145deg, rgba(76,111,81,.72), rgba(13,34,20,.62)) !important;
+  background-color: rgba(20,46,27,.62) !important;
+  background-image: linear-gradient(145deg, rgba(76,111,81,.72), rgba(13,34,20,.62)) !important;
+  color: #f8fff9 !important;
+  -webkit-text-fill-color: #f8fff9 !important;
+}
+
+.research-os-host button.ros-ai-library-action:disabled,
+.research-os-host button.ros-ai-extract-action:disabled,
+.research-os-host button.ros-ai-library-action[disabled],
+.research-os-host button.ros-ai-extract-action[disabled] {
+  border-color: rgba(239,255,246,.20) !important;
+  background: linear-gradient(145deg, rgba(33,57,41,.46), rgba(6,18,10,.38)) !important;
+  background-color: rgba(8,23,13,.34) !important;
+  background-image: linear-gradient(145deg, rgba(33,57,41,.46), rgba(6,18,10,.38)) !important;
+  color: rgba(232,244,237,.58) !important;
+  -webkit-text-fill-color: rgba(232,244,237,.58) !important;
+  opacity: .86 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,12,5,.12) !important;
+}
+
+.research-os-host button.ros-ai-library-action svg,
+.research-os-host button.ros-ai-extract-action svg {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+.research-os-host button.ros-ai-library-action span,
+.research-os-host button.ros-ai-extract-action span {
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
 @media (max-width: 720px) {
   .ros-insight-empty, .ros-insight-candidate { align-items: stretch; grid-template-columns: 1fr; flex-direction: column; }
   .ros-insight-candidate-actions { justify-content: flex-end; }
