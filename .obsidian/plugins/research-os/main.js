@@ -2583,10 +2583,20 @@ var require_theme_service = __commonJS({
         this.plugin = plugin;
         this.app = plugin.app;
         this.previewTheme = null;
+        this.persistencePath = "09 Attachments/.research-os-theme.json";
       }
       async initialize() {
         const settings = this.plugin.ai.settings;
         let changed = false;
+        try {
+          if (await this.app.vault.adapter.exists(this.persistencePath)) {
+            const persisted = JSON.parse(await this.app.vault.adapter.read(this.persistencePath));
+            if (persisted?.activeThemeId) settings.activeThemeId = persisted.activeThemeId;
+            if (persisted?.customTheme) settings.customTheme = persisted.customTheme;
+          }
+        } catch (error) {
+          console.warn("Research OS theme restore failed", error);
+        }
         if (Object.prototype.hasOwnProperty.call(settings, "backgroundImagePath")) {
           delete settings.backgroundImagePath;
           changed = true;
@@ -2605,6 +2615,19 @@ var require_theme_service = __commonJS({
           changed = true;
         }
         if (changed) await this.plugin.ai.save();
+        await this.persist();
+      }
+      async persist() {
+        try {
+          const folder = this.persistencePath.split("/").slice(0, -1).join("/");
+          if (!this.app.vault.getAbstractFileByPath(folder)) await this.ensureFolder(folder);
+          await this.app.vault.adapter.write(this.persistencePath, JSON.stringify({
+            activeThemeId: this.plugin.ai.settings.activeThemeId,
+            customTheme: this.plugin.ai.settings.customTheme || null
+          }));
+        } catch (error) {
+          console.warn("Research OS theme persistence failed", error);
+        }
       }
       isValidCustom(theme) {
         return Boolean(theme && theme.backgroundPath && theme.tokens && theme.controls);
@@ -2644,6 +2667,7 @@ var require_theme_service = __commonJS({
         this.plugin.ai.settings.customTheme = this.previewTheme;
         this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
         await this.plugin.ai.save();
+        await this.persist();
         this.plugin.refreshViews();
         return this.previewTheme;
       }
@@ -2712,6 +2736,7 @@ var require_theme_service = __commonJS({
         this.plugin.ai.settings.activeThemeId = CUSTOM_THEME_ID;
         this.previewTheme = null;
         await this.plugin.ai.save();
+        await this.persist();
         this.plugin.refreshViews();
       }
       cancelPreview() {
@@ -2722,6 +2747,7 @@ var require_theme_service = __commonJS({
         this.previewTheme = null;
         this.plugin.ai.settings.activeThemeId = FOREST_THEME_ID;
         await this.plugin.ai.save();
+        await this.persist();
         this.plugin.refreshViews();
       }
       async deleteCustom() {
@@ -2729,6 +2755,7 @@ var require_theme_service = __commonJS({
         this.plugin.ai.settings.customTheme = null;
         this.plugin.ai.settings.activeThemeId = FOREST_THEME_ID;
         await this.plugin.ai.save();
+        await this.persist();
         this.plugin.refreshViews();
       }
       resolveTheme() {

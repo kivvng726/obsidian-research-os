@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4 - 2026-09-12
+
+- Fixed custom theme settings being reset when the plugin data file is replaced during an update by persisting theme state in the Vault.
+
 ## 0.4.3 - 2026-09-12
 
 - Fixed Markdown drag-and-drop import failing with `ENOENT` on Windows by reading dropped file bytes directly.
