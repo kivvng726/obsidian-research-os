@@ -3835,11 +3835,8 @@ var VIEW_TYPE = "research-os-view";
 module.exports = class ResearchOSPlugin extends Plugin {
   async onload() {
     this.store = new ResearchStore(this.app);
-    await this.ensureWorkspaceFolders();
     this.ai = new AIService(this);
-    await this.ai.load();
     this.theme = new ThemeService(this);
-    await this.theme.initialize();
     this.addSettingTab(new ResearchAISettingTab(this.app, this));
     this.registerView(VIEW_TYPE, (leaf) => new ResearchView(leaf, this));
     this.addRibbonIcon("library-big", "\u6253\u5F00 Research OS", () => this.openResearchOS());
@@ -3889,6 +3886,7 @@ module.exports = class ResearchOSPlugin extends Plugin {
         }
       }
     });
+    await this.bootstrap();
     const refresh = this.debounce(() => this.refreshViews(), 350);
     this.registerEvent(this.app.vault.on("create", refresh));
     this.registerEvent(this.app.vault.on("delete", refresh));
@@ -3907,6 +3905,24 @@ module.exports = class ResearchOSPlugin extends Plugin {
         await this.openResearchOS(false);
       }
     });
+  }
+  async bootstrap() {
+    try {
+      await this.ensureWorkspaceFolders();
+    } catch (error) {
+      console.error("Research OS folder bootstrap failed", error);
+    }
+    try {
+      await this.ai.load();
+    } catch (error) {
+      console.error("Research OS settings load failed", error);
+      this.ai.settings = { ...this.ai.settings };
+    }
+    try {
+      await this.theme.initialize();
+    } catch (error) {
+      console.error("Research OS theme initialization failed", error);
+    }
   }
   async ensureWorkspaceFolders() {
     const folders = [
