@@ -3276,6 +3276,63 @@ ${readingNotes}`;
         while (stack.length) output += stack.pop();
         return output;
       }
+      parsePaperInsightResponse(content) {
+        try {
+          return this.parseJsonResponse(content, "DeepSeek \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
+        } catch (error) {
+          const fallback = this.extractInsightAnswers(content);
+          if (fallback) return fallback;
+          throw error;
+        }
+      }
+      extractInsightAnswers(content) {
+        const source = String(content || "");
+        const answerBlock = source.match(/"answers"\s*:\s*\{([\s\S]*)/i)?.[1] || source;
+        const answers = {};
+        for (let index = 1; index <= 10; index++) {
+          const key = `q${index}`;
+          const pattern = new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?<!\\\\)"(?=\\s*,\\s*"q\\d+"|\\s*[,}])`, "i");
+          const match = answerBlock.match(pattern);
+          if (match?.[1]) answers[key] = this.cleanRecoveredJsonText(match[1]);
+        }
+        if (!Object.keys(answers).length) return null;
+        for (let index = 1; index <= 10; index++) {
+          const key = `q${index}`;
+          if (!answers[key]) answers[key] = "\u6750\u6599\u4E2D\u672A\u8BF4\u660E\u3002";
+        }
+        console.warn("Research OS recovered partial paper insight response", { recoveredAnswers: Object.keys(answers).length });
+        return {
+          answers,
+          taxonomy: {
+            primaryTopic: this.recoverJsonString(source, "primaryTopic") || "\u672A\u5206\u7C7B",
+            subtopics: this.recoverJsonStringArray(source, "subtopics"),
+            methods: this.recoverJsonStringArray(source, "methods"),
+            tasks: this.recoverJsonStringArray(source, "tasks"),
+            datasets: this.recoverJsonStringArray(source, "datasets"),
+            confidence: Number(this.recoverJsonNumber(source, "confidence") || 45)
+          },
+          candidates: []
+        };
+      }
+      recoverJsonString(source, key) {
+        const match = String(source || "").match(new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?<!\\\\)"`, "i"));
+        return match ? this.cleanRecoveredJsonText(match[1]) : "";
+      }
+      recoverJsonStringArray(source, key) {
+        const match = String(source || "").match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)\\]`, "i"));
+        if (!match) return [];
+        return [...match[1].matchAll(/"([\s\S]*?)(?<!\\)"/g)].map((item) => this.cleanRecoveredJsonText(item[1])).filter(Boolean).slice(0, 6);
+      }
+      recoverJsonNumber(source, key) {
+        return String(source || "").match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`, "i"))?.[1] || "";
+      }
+      cleanRecoveredJsonText(value) {
+        try {
+          return JSON.parse(`"${String(value || "").replace(/(?<!\\)"/g, '\\"')}"`).trim();
+        } catch {
+          return String(value || "").replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, " ").trim();
+        }
+      }
       repairJson(text) {
         return String(text || "")
           .replace(/,\s*([}\]])/g, "$1")
@@ -3410,13 +3467,13 @@ Q8 \u8BBA\u6587\u4E2D\u7684\u5B9E\u9A8C\u53CA\u7ED3\u679C\u6709\u6CA1\u6709\u5F8
 Q9 \u8FD9\u7BC7\u8BBA\u6587\u5230\u5E95\u6709\u4EC0\u4E48\u8D21\u732E\uFF1F
 Q10 \u4E0B\u4E00\u6B65\u5462\uFF1F\u6709\u4EC0\u4E48\u5DE5\u4F5C\u53EF\u4EE5\u7EE7\u7EED\u6DF1\u5165\uFF1F
 
-JSON \u683C\u5F0F\uFF1A{"answers":{"q1":string,"q2":string,"q3":string,"q4":string,"q5":string,"q6":string,"q7":string,"q8":string,"q9":string,"q10":string},"taxonomy":{"primaryTopic":string,"subtopics":string[],"methods":string[],"tasks":string[],"datasets":string[],"confidence":0-100},"candidates":[{"id":string,"type":"finding|method|question|gap|conflict|hypothesis|decision","title":string,"summary":string,"nextAction":string}]}\u3002primaryTopic \u53EA\u80FD\u6709\u4E00\u4E2A\uFF1Bsubtopics 2\u81F34\u4E2A\uFF1Bmethods \u6700\u591A3\u4E2A\uFF1Btasks \u6700\u591A2\u4E2A\uFF1Bcandidates \u6700\u591A3\u6761\u3002`
+JSON \u683C\u5F0F\uFF1A{"answers":{"q1":string,"q2":string,"q3":string,"q4":string,"q5":string,"q6":string,"q7":string,"q8":string,"q9":string,"q10":string},"taxonomy":{"primaryTopic":string,"subtopics":string[],"methods":string[],"tasks":string[],"datasets":string[],"confidence":0-100},"candidates":[{"id":string,"type":"finding|method|question|gap|conflict|hypothesis|decision","title":string,"summary":string,"nextAction":string}]}\u3002\u6BCF\u4E2A\u7B54\u6848\u9650 120 \u4E2A\u6C49\u5B57\u4EE5\u5185\uFF1BprimaryTopic \u53EA\u80FD\u6709\u4E00\u4E2A\uFF1Bsubtopics 2\u81F34\u4E2A\uFF1Bmethods \u6700\u591A3\u4E2A\uFF1Btasks \u6700\u591A2\u4E2A\uFF1Bcandidates \u6700\u591A2\u6761\uFF0Csummary \u9650 80 \u4E2A\u6C49\u5B57\u3002`
             },
             { role: "user", content: `\u751F\u6210\u4F9D\u636E\u7B49\u7EA7\uFF1A${context.extractionLabel}
 
 ${context.material}` }
-          ], { json: true, thinking: true, maxTokens: 5200 });
-          const parsed = this.parseJsonResponse(response, "DeepSeek \u8FD4\u56DE\u7684\u8BBA\u6587\u63D0\u70BC\u65E0\u6CD5\u89E3\u6790");
+          ], { json: true, thinking: false, maxTokens: 7200 });
+          const parsed = this.parsePaperInsightResponse(response);
           if (!parsed.answers || typeof parsed.answers !== "object") throw new Error("\u8BBA\u6587\u63D0\u70BC\u7F3A\u5C11\u5341\u95EE\u7B54\u6848");
           return this.plugin.store.savePaperInsight(paper, {
             answers: parsed.answers,
