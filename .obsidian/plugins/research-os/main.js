@@ -3005,6 +3005,8 @@ var require_ai_service = __commonJS({
         this.app = plugin.app;
         this.settings = { ...DEFAULT_AI_SETTINGS };
         this.insightJobs = /* @__PURE__ */ new Map();
+        this.discoveryJob = null;
+        this.discoveryCooldownUntil = 0;
       }
       async load() {
         this.settings = { ...DEFAULT_AI_SETTINGS, ...await this.plugin.loadData() || {} };
@@ -3060,7 +3062,16 @@ var require_ai_service = __commonJS({
         const terms = this.settings.interests.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12);
         const search = terms.map((term) => `all:"${term}"`).join(" OR ");
         const url = `https://export.arxiv.org/api/query?search_query=${encodeURIComponent(search)}&start=0&max_results=30&sortBy=submittedDate&sortOrder=descending`;
-        const response = await requestUrl({ url, method: "GET", headers: { "User-Agent": "ResearchOS/0.2" } });
+        const response = await requestUrl({ url, method: "GET", headers: { "User-Agent": "ResearchOS/0.5" }, throw: false });
+        if (response.status === 429) {
+          this.discoveryCooldownUntil = Date.now() + 10 * 60 * 1e3;
+          const error = new Error("\u8BBA\u6587\u6293\u53D6\u88AB arXiv \u6682\u65F6\u9650\u6D41\uFF0C\u8BF7 10 \u5206\u949F\u540E\u518D\u8BD5");
+          error.status = 429;
+          throw error;
+        }
+        if (response.status < 200 || response.status >= 300) {
+          throw new Error(`arXiv \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${response.status}`);
+        }
         const xml = new DOMParser().parseFromString(response.text, "application/xml");
         return Array.from(xml.querySelectorAll("entry")).map((entry) => {
           const value = (tag) => entry.querySelector(tag)?.textContent?.replace(/\s+/g, " ").trim() || "";
@@ -3087,18 +3098,33 @@ var require_ai_service = __commonJS({
         });
       }
       async runWeeklyDiscovery(force = false) {
+        if (this.discoveryJob) return this.discoveryJob;
         if (!force && !this.shouldRunWeekly()) return this.settings.discoveries;
-        const papers = await this.fetchArxiv();
-        const libraryTitles = new Set(this.plugin.store.byType("literature").map((x) => x.title.toLowerCase()));
-        const candidates = papers.filter((p) => !libraryTitles.has(p.title.toLowerCase()));
-        let ranked = candidates;
-        if (this.isConfigured() && candidates.length) ranked = await this.rankPapers(candidates);
-        ranked = ranked.sort((a, b) => b.score - a.score).slice(0, Number(this.settings.weeklyLimit) || 8);
-        const oldStates = new Map(this.settings.discoveries.map((x) => [x.id, x.state]));
-        this.settings.discoveries = ranked.map((x) => ({ ...x, state: oldStates.get(x.id) || "new" }));
-        this.settings.lastDiscoveryAt = (/* @__PURE__ */ new Date()).toISOString();
-        await this.save();
-        return this.settings.discoveries;
+        if (Date.now() < this.discoveryCooldownUntil) {
+          if (this.settings.discoveries.length) return this.settings.discoveries;
+          throw new Error("\u8BBA\u6587\u6293\u53D6\u88AB arXiv \u6682\u65F6\u9650\u6D41\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5");
+        }
+        this.discoveryJob = (async () => {
+          try {
+            const papers = await this.fetchArxiv();
+            const libraryTitles = new Set(this.plugin.store.byType("literature").map((x) => x.title.toLowerCase()));
+            const candidates = papers.filter((p) => !libraryTitles.has(p.title.toLowerCase()));
+            let ranked = candidates;
+            if (this.isConfigured() && candidates.length) ranked = await this.rankPapers(candidates);
+            ranked = ranked.sort((a, b) => b.score - a.score).slice(0, Number(this.settings.weeklyLimit) || 8);
+            const oldStates = new Map(this.settings.discoveries.map((x) => [x.id, x.state]));
+            this.settings.discoveries = ranked.map((x) => ({ ...x, state: oldStates.get(x.id) || "new" }));
+            this.settings.lastDiscoveryAt = (/* @__PURE__ */ new Date()).toISOString();
+            await this.save();
+            return this.settings.discoveries;
+          } catch (error) {
+            if (error?.status === 429 && this.settings.discoveries.length) return this.settings.discoveries;
+            throw error;
+          } finally {
+            this.discoveryJob = null;
+          }
+        })();
+        return this.discoveryJob;
       }
       shouldRunWeekly() {
         if (!this.settings.weeklyEnabled) return false;
