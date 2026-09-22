@@ -21,6 +21,13 @@ class LiteratureEditModal extends Modal {
   onOpen() {
     const root = this.contentEl;
     root.addClass("ros-literature-edit-modal");
+    const theme = this.plugin.theme?.resolveTheme?.();
+    if (theme?.id === "custom-dynamic") {
+      root.addClass("ros-theme-custom");
+      [root, this.containerEl, this.modalEl].filter(Boolean).forEach(target => {
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+      });
+    }
     root.createEl("h2", { text: "编辑文献信息" });
     root.createEl("p", { text: "修改只会更新文献笔记的 Properties，不会改动 PDF 正文。", cls: "ros-modal-help" });
     this.text(root, "论文标题", "title");
@@ -107,6 +114,13 @@ class LiteratureDeleteModal extends Modal {
   onOpen() {
     const root = this.contentEl;
     root.addClass("ros-literature-delete-modal");
+    const theme = this.plugin.theme?.resolveTheme?.();
+    if (theme?.id === "custom-dynamic") {
+      [root, this.containerEl, this.modalEl].filter(Boolean).forEach(target => {
+        target.addClass("ros-theme-custom");
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+      });
+    }
     root.createEl("h2", { text: "从文献库删除？" });
     root.createEl("p", { text: this.item.title });
     root.createEl("p", { text: "默认只把文献笔记移到系统回收站，原始 PDF、PPT 和独立笔记会继续保留。", cls: "ros-modal-help" });

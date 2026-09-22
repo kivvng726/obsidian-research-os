@@ -21,16 +21,21 @@ class ThemeService {
   async initialize() {
     const settings = this.plugin.ai.settings;
     let changed = false;
-    let restoredFromPersistence = false;
-    // Keep theme state outside plugin data so reinstalling/updating the plugin
-    // cannot reset a user's selected background.
     try {
       const persistedFile = this.app.vault.getAbstractFileByPath(this.persistencePath);
       if (persistedFile instanceof TFile) {
         const persisted = JSON.parse(await this.app.vault.read(persistedFile));
-        restoredFromPersistence = true;
-        if (persisted?.activeThemeId) settings.activeThemeId = persisted.activeThemeId;
-        if (persisted?.customTheme) settings.customTheme = persisted.customTheme;
+        const persistedThemeId = [FOREST_THEME_ID, CUSTOM_THEME_ID].includes(persisted?.activeThemeId)
+          ? persisted.activeThemeId
+          : "";
+        if (this.isValidCustom(persisted?.customTheme)) {
+          settings.customTheme = persisted.customTheme;
+          changed = true;
+        }
+        if (persistedThemeId) {
+          settings.activeThemeId = persistedThemeId;
+          changed = true;
+        }
       }
     } catch (error) { console.warn("Research OS theme restore failed", error); }
     if (settings.customTheme?.backgroundPath) {
@@ -40,12 +45,14 @@ class ThemeService {
         changed = true;
       }
     }
-    if (!restoredFromPersistence && !settings.customTheme) {
+    if (!this.isValidCustom(settings.customTheme)) {
       const fallback = this.findCustomBackgroundFile();
       if (fallback instanceof TFile) {
-        settings.customTheme = await this.analyzePath(fallback.path);
-        settings.activeThemeId = CUSTOM_THEME_ID;
-        changed = true;
+        try {
+          settings.customTheme = await this.analyzePath(fallback.path);
+          settings.activeThemeId = CUSTOM_THEME_ID;
+          changed = true;
+        } catch (error) { console.warn("Research OS custom theme fallback failed", error); }
       }
     }
     if (Object.prototype.hasOwnProperty.call(settings, "backgroundImagePath")) {
@@ -53,11 +60,10 @@ class ThemeService {
       changed = true;
     }
     if (![FOREST_THEME_ID, CUSTOM_THEME_ID].includes(settings.activeThemeId)) {
-      settings.activeThemeId = FOREST_THEME_ID;
+      settings.activeThemeId = this.isValidCustom(settings.customTheme) ? CUSTOM_THEME_ID : FOREST_THEME_ID;
       changed = true;
     }
-    if (settings.activeThemeId === CUSTOM_THEME_ID && (!this.isValidCustom(settings.customTheme)
-      || !(this.app.vault.getAbstractFileByPath(settings.customTheme.backgroundPath) instanceof TFile))) {
+    if (settings.activeThemeId === CUSTOM_THEME_ID && !this.isValidCustom(settings.customTheme)) {
       settings.activeThemeId = FOREST_THEME_ID;
       changed = true;
     }
@@ -239,23 +245,30 @@ class ThemeService {
 
   resolveTheme() {
     if (this.previewTheme) return this.previewTheme;
-    if (this.activeThemeId === CUSTOM_THEME_ID && this.isValidCustom(this.customTheme)
-      && this.app.vault.getAbstractFileByPath(this.customTheme.backgroundPath) instanceof TFile) return this.customTheme;
+    if (this.activeThemeId === CUSTOM_THEME_ID && this.isValidCustom(this.customTheme)) return this.customTheme;
     return FOREST_ORIGINAL_THEME;
   }
 
   applyTo(root) {
     const theme = this.resolveTheme();
     root.removeClass("ros-theme-custom");
+    root.removeClass("ros-skin-forest");
+    root.removeClass("ros-skin-crt");
     this.clearTokens(root);
     const background = this.app.vault.getAbstractFileByPath(theme.backgroundPath) || this.app.vault.getAbstractFileByPath("forest.jpg");
     const backgroundUrl = background instanceof TFile
       ? this.app.vault.getResourcePath(background)
       : this.app.vault.adapter.getResourcePath(".obsidian/plugins/research-os/forest.jpg");
     root.style.setProperty("--ros-forest-image", `url("${backgroundUrl}")`);
-    if (theme.id !== CUSTOM_THEME_ID) return;
+    if (theme.id !== CUSTOM_THEME_ID) {
+      root.addClass("ros-skin-forest");
+      return;
+    }
     root.addClass("ros-theme-custom");
-    Object.entries(theme.tokens || {}).forEach(([name, value]) => root.style.setProperty(name, value));
+    Object.entries(theme.tokens || {}).forEach(([name, value]) => {
+      root.style.setProperty(name, value);
+      document.body?.style.setProperty(name, value);
+    });
     const aliases = {
       "--ros-bg": "transparent",
       "--ros-panel": theme.tokens["--skin-sidebar"],

@@ -44,6 +44,13 @@ class ProgressModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.addClass("ros-progress-modal");
+    const theme = this.plugin.theme?.resolveTheme?.();
+    if (theme?.id === "custom-dynamic") {
+      [contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach(target => {
+        target.addClass("ros-theme-custom");
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+      });
+    }
     contentEl.createEl("h2", { text: "记录研究进展" });
     contentEl.createEl("p", { text: "记录你因阅读而形成的认识，而不是阅读数量。之后仍可在 Markdown 中自由补充。", cls: "ros-modal-help" });
 

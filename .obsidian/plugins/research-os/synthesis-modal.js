@@ -14,6 +14,13 @@ class SynthesisModal extends Modal {
 
   onOpen() {
     this.contentEl.addClass("ros-synthesis-modal");
+    const theme = this.plugin.theme?.resolveTheme?.();
+    if (theme?.id === "custom-dynamic") {
+      [this.contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach(target => {
+        target.addClass("ros-theme-custom");
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+      });
+    }
     this.render();
   }
 

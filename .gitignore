@@ -39,6 +39,9 @@
 
 # Local release artifacts
 release/
+dist-test/
+research-os-test.local.json
+.env.local
 node_modules/
 
 # OS and editor files

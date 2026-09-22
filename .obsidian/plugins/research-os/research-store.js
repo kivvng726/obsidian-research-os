@@ -102,8 +102,39 @@ class ResearchStore {
     return String(value || "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0];
   }
 
+  normalizeVaultPath(value) {
+    let path = this.cleanLink(value).trim();
+    if (!path) return "";
+
+    if (/^file:\/\//i.test(path)) path = path.replace(/^file:\/+/i, "");
+    else if (/^[a-z][a-z\d+.-]*:\/\//i.test(path)) return "";
+
+    try { path = decodeURIComponent(path); } catch {}
+    path = path.replace(/\\/g, "/").replace(/^\/+([A-Za-z]:\/)/, "$1");
+
+    if (/^[A-Za-z]:\//.test(path)) {
+      const vaultRoot = this.app.vault.adapter?.getBasePath?.();
+      if (vaultRoot) {
+        const normalizedRoot = String(vaultRoot).replace(/\\/g, "/").replace(/\/+$/, "");
+        if (path.toLowerCase().startsWith(`${normalizedRoot.toLowerCase()}/`)) {
+          path = path.slice(normalizedRoot.length + 1);
+        }
+      }
+
+      if (/^[A-Za-z]:\//.test(path)) {
+        const vaultFolders = ["03 Literature/", "04 Notes/", "05 Research/", "09 Attachments/"];
+        const lowerPath = path.toLowerCase();
+        const folder = vaultFolders.find(entry => lowerPath.includes(entry.toLowerCase()));
+        if (!folder) return "";
+        path = path.slice(lowerPath.indexOf(folder.toLowerCase()));
+      }
+    }
+
+    return path.replace(/^\/+/, "");
+  }
+
   resolveLink(value, sourcePath = "") {
-    const clean = this.cleanLink(value);
+    const clean = this.normalizeVaultPath(value);
     if (!clean) return null;
     const file = this.app.vault.getAbstractFileByPath(clean) || this.app.metadataCache.getFirstLinkpathDest(clean, sourcePath);
     return file instanceof TFile ? file : null;

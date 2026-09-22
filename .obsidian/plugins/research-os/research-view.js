@@ -14,6 +14,16 @@ const STATUS = {
   annotated: "已完成"
 };
 
+function restoreSearchInputFocus(container, cursor) {
+  const input = container?.querySelector?.(".ros-search input");
+  if (!input) return;
+  input.focus?.();
+  if (typeof input.setSelectionRange !== "function") return;
+  const length = String(input.value || "").length;
+  const position = Math.max(0, Math.min(Number.isFinite(cursor) ? cursor : length, length));
+  input.setSelectionRange(position, position);
+}
+
 class ResearchView extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -60,9 +70,6 @@ class ResearchView extends ItemView {
     if (this.paperGraph) { this.paperGraph.destroy(); this.paperGraph = null; }
     root.empty();
     root.addClass("research-os-host");
-    root.removeClass("ros-skin-forest");
-    root.removeClass("ros-skin-crt");
-    root.addClass("ros-skin-forest");
     this.applyForestBackground();
     const shell = root.createDiv("ros-shell ros-simple-shell");
     this.installFileDrop(shell);
@@ -123,9 +130,14 @@ class ResearchView extends ItemView {
     const search = searchWrap.createEl("input", { attr: { type: "search", placeholder: "搜索标题、作者或分类…", "aria-label": "搜索文献" } });
     search.value = this.query;
     search.addEventListener("input", e => {
-      this.query = e.target.value;
+      const input = e.target;
+      this.query = input.value;
       clearTimeout(this.searchTimer);
-      this.searchTimer = setTimeout(() => this.render(), 150);
+      this.searchTimer = setTimeout(() => {
+        const cursor = input.selectionStart ?? this.query.length;
+        this.render();
+        restoreSearchInputFocus(this.contentEl, cursor);
+      }, 120);
     });
     const capture = tools.createEl("button", { cls: "ros-primary-btn" });
     const plus = capture.createSpan(); setIcon(plus, this.section === "discover" ? "refresh-cw" : this.section === "progress" ? "sprout" : "plus");
@@ -288,7 +300,7 @@ class ResearchView extends ItemView {
       const button = filters.createEl("button", { text: label, cls: this.filter === id ? "is-active" : "" });
       button.addEventListener("click", () => { this.filter = id; this.render(); });
     });
-    const organize = controls.createEl("button", { cls: "ros-secondary-btn" });
+    const organize = controls.createEl("button", { cls: ["ros-secondary-btn", "ros-ai-library-action"] });
     const organizeIcon = organize.createSpan(); setIcon(organizeIcon, "sparkles");
     organize.createSpan({ text: "AI 重整文献库" });
     organize.addEventListener("click", () => this.organizeLibrary(organize));
@@ -859,4 +871,4 @@ class ResearchView extends ItemView {
   }
 }
 
-module.exports = { ResearchView, VIEW_TYPE };
+module.exports = { ResearchView, VIEW_TYPE, restoreSearchInputFocus };

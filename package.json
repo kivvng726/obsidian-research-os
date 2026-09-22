@@ -14,7 +14,9 @@
   "license": "MIT",
   "scripts": {
     "build": "esbuild .obsidian/plugins/research-os/main.source.js --bundle --platform=node --format=cjs --external:obsidian --outfile=.obsidian/plugins/research-os/main.js",
-    "test": "node .obsidian/plugins/research-os/theme-engine.test.js",
+    "build:test": "node scripts/build-test-plugin.mjs",
+    "test": "node .obsidian/plugins/research-os/theme-engine.test.js && node .obsidian/plugins/research-os/research-store.test.js && node .obsidian/plugins/research-os/research-view.test.js",
+    "test:vault:init": "node scripts/deploy-test-plugin.mjs init",
     "check": "node --check .obsidian/plugins/research-os/main.source.js && node --check .obsidian/plugins/research-os/theme-service.js && node --check .obsidian/plugins/research-os/theme-settings.js"
   },
   "devDependencies": {

@@ -18,6 +18,13 @@ class CaptureModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.addClass("ros-capture-modal");
+    const theme = this.plugin.theme?.resolveTheme?.();
+    if (theme?.id === "custom-dynamic") {
+      [contentEl, this.containerEl, this.modalEl].filter(Boolean).forEach(target => {
+        target.addClass("ros-theme-custom");
+        Object.entries(theme.tokens || {}).forEach(([name, value]) => target.style.setProperty(name, value));
+      });
+    }
     contentEl.createEl("h2", { text: "添加文献" });
     contentEl.createEl("p", { text: "先把 PDF 或 PPT 拖入 Obsidian 附件文件夹，再填写其知识库内路径。只有标题为必填项。", cls: "ros-modal-help" });
 
