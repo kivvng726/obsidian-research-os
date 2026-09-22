@@ -362,6 +362,206 @@ class AIService {
     try { return JSON.parse(clean); } catch { throw new Error(errorMessage); }
   }
 
+  extractJsonObject(text) {
+    const source = String(text || "");
+    for (let start = 0; start < source.length; start++) {
+      if (source[start] !== "{") continue;
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let index = start; index < source.length; index++) {
+        const char = source[index];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (char === "\\") escaped = true;
+          else if (char === '"') inString = false;
+          continue;
+        }
+        if (char === '"') inString = true;
+        else if (char === "{") depth++;
+        else if (char === "}") {
+          depth--;
+          if (depth === 0) return source.slice(start, index + 1);
+        }
+      }
+    }
+    return "";
+  }
+
+  extractPartialJsonObject(text) {
+    const source = String(text || "");
+    const start = source.indexOf("{");
+    if (start < 0) return "";
+    const stack = [];
+    let inString = false;
+    let escaped = false;
+    let output = "";
+    for (let index = start; index < source.length; index++) {
+      const char = source[index];
+      output += char;
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') inString = true;
+      else if (char === "{" || char === "[") stack.push(char === "{" ? "}" : "]");
+      else if (char === "}" || char === "]") {
+        if (stack[stack.length - 1] === char) stack.pop();
+        if (!stack.length) return output;
+      }
+    }
+    if (inString) output += '"';
+    while (stack.length) output += stack.pop();
+    return output;
+  }
+
+  parsePaperInsightResponse(content) {
+    const raw = String(content || "");
+    if (!raw.trim()) throw new Error("AI 返回的论文提炼无法解析");
+    const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    const extracted = this.extractJsonObject(clean);
+    const partial = this.extractPartialJsonObject(clean);
+    const candidates = [clean, extracted, partial].filter(Boolean);
+    for (const candidate of candidates) {
+      for (const repaired of [
+        candidate,
+        this.escapeJsonStringControlChars(candidate),
+        this.repairJson(candidate),
+        this.escapeJsonStringControlChars(this.repairJson(candidate))
+      ]) {
+        try {
+          const parsed = JSON.parse(repaired);
+          if (parsed?.answers && typeof parsed.answers === "object") return this.normalizePaperInsightResult(parsed);
+        } catch { /* Continue through the Paper Insight-specific recovery chain. */ }
+      }
+    }
+    const fallback = this.extractInsightAnswers(raw);
+    if (fallback) return fallback;
+    console.warn("Research OS paper insight parse failed", {
+      responseLength: raw.length,
+      stage: "unrecoverable",
+      truncationLikely: /[,{]\s*$/.test(clean)
+    });
+    throw new Error("AI 返回的论文提炼无法解析");
+  }
+
+  extractInsightAnswers(content) {
+    const source = String(content || "");
+    const answerBlock = source.match(/"answers"\s*:\s*[\[{]([\s\S]*)/i)?.[1] || source;
+    const answers = {};
+    for (let index = 1; index <= 10; index++) {
+      const key = `q${index}`;
+      const pattern = new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?<!\\\\)"(?=\\s*,\\s*"q\\d+"|\\s*[,}])`, "i");
+      const match = answerBlock.match(pattern);
+      if (match?.[1]) answers[key] = this.cleanRecoveredJsonText(match[1]);
+    }
+    if (!Object.keys(answers).length) return null;
+    for (let index = 1; index <= 10; index++) {
+      const key = `q${index}`;
+      if (!answers[key]) answers[key] = "材料中未说明。";
+    }
+    console.warn("Research OS recovered partial paper insight response", {
+      responseLength: source.length,
+      stage: "answer-recovery",
+      recoveredAnswers: Object.keys(answers).length
+    });
+    return {
+      answers,
+      taxonomy: {
+        primaryTopic: this.recoverJsonString(source, "primaryTopic") || "未分类",
+        subtopics: this.recoverJsonStringArray(source, "subtopics"),
+        methods: this.recoverJsonStringArray(source, "methods"),
+        tasks: this.recoverJsonStringArray(source, "tasks"),
+        datasets: this.recoverJsonStringArray(source, "datasets"),
+        confidence: Number(this.recoverJsonNumber(source, "confidence") || 45)
+      },
+      candidates: []
+    };
+  }
+
+  normalizePaperInsightResult(parsed) {
+    const rawAnswers = Array.isArray(parsed.answers)
+      ? parsed.answers.reduce((result, item) => Object.assign(result, item && typeof item === "object" ? item : {}), {})
+      : parsed.answers;
+    const answers = {};
+    for (let index = 1; index <= 10; index++) {
+      const key = `q${index}`;
+      const value = rawAnswers?.[key];
+      answers[key] = typeof value === "string" && value.trim() ? value.trim() : "材料中未说明。";
+    }
+    const taxonomy = parsed.taxonomy && typeof parsed.taxonomy === "object" ? parsed.taxonomy : {};
+    return {
+      ...parsed,
+      answers,
+      taxonomy: {
+        primaryTopic: String(taxonomy.primaryTopic || "未分类").trim() || "未分类",
+        subtopics: Array.isArray(taxonomy.subtopics) ? taxonomy.subtopics : [],
+        methods: Array.isArray(taxonomy.methods) ? taxonomy.methods : [],
+        tasks: Array.isArray(taxonomy.tasks) ? taxonomy.tasks : [],
+        datasets: Array.isArray(taxonomy.datasets) ? taxonomy.datasets : [],
+        confidence: Number.isFinite(Number(taxonomy.confidence)) ? Number(taxonomy.confidence) : 45
+      },
+      candidates: Array.isArray(parsed.candidates) ? parsed.candidates : []
+    };
+  }
+
+  recoverJsonString(source, key) {
+    const match = String(source || "").match(new RegExp(`"${key}"\\s*:\\s*"([\\s\\S]*?)(?<!\\\\)"`, "i"));
+    return match ? this.cleanRecoveredJsonText(match[1]) : "";
+  }
+
+  recoverJsonStringArray(source, key) {
+    const match = String(source || "").match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)\\]`, "i"));
+    if (!match) return [];
+    return [...match[1].matchAll(/"([\s\S]*?)(?<!\\)"/g)].map(item => this.cleanRecoveredJsonText(item[1])).filter(Boolean).slice(0, 6);
+  }
+
+  recoverJsonNumber(source, key) {
+    return String(source || "").match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`, "i"))?.[1] || "";
+  }
+
+  cleanRecoveredJsonText(value) {
+    try {
+      return JSON.parse(`"${String(value || "").replace(/(?<!\\)"/g, '\\"')}"`).trim();
+    } catch {
+      return String(value || "").replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\t/g, " ").trim();
+    }
+  }
+
+  repairJson(text) {
+    return String(text || "")
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2018\u2019]/g, "'");
+  }
+
+  escapeJsonStringControlChars(text) {
+    const source = String(text || "");
+    let output = "";
+    let inString = false;
+    let escaped = false;
+    for (let index = 0; index < source.length; index++) {
+      const char = source[index];
+      if (inString) {
+        if (escaped) { output += char; escaped = false; continue; }
+        if (char === "\\") { output += char; escaped = true; continue; }
+        if (char === '"') { output += char; inString = false; continue; }
+        if (char === "\n") { output += "\\n"; continue; }
+        if (char === "\r") { output += "\\r"; continue; }
+        if (char === "\t") { output += "\\t"; continue; }
+        const code = char.charCodeAt(0);
+        if (code >= 0 && code < 32) { output += `\\u${code.toString(16).padStart(4, "0")}`; continue; }
+        output += char;
+        continue;
+      }
+      output += char;
+      if (char === '"') inString = true;
+    }
+    return output;
+  }
+
   async paperInsightContext(paper) {
     const note = await this.app.vault.read(paper.file);
     const readingNote = await this.readingNotesContext(paper, 30000);
@@ -414,8 +614,8 @@ class AIService {
           content: `你是严谨的论文研究提炼助手。只能依据用户提供的论文材料回答，不得虚构实验数字、数据集、开源地址、作者观点或相关研究。证据不足时必须明确写“材料中未说明”。回答要具体、清楚、适合研究者复核。只返回 JSON 对象，不要 Markdown 代码块。\n\n必须逐一回答十个问题：\nQ1 论文试图解决什么问题？\nQ2 这是否是一个新的问题？\nQ3 这篇文章要验证一个什么科学假设？\nQ4 有哪些相关研究？如何归类？谁是这一领域内值得关注的研究员？\nQ5 论文中提到的解决方案之关键是什么？\nQ6 论文中的实验是如何设计的？\nQ7 用于定量评估的数据集是什么？代码有没有开源？\nQ8 论文中的实验及结果有没有很好地支持需要验证的科学假设？\nQ9 这篇论文到底有什么贡献？\nQ10 下一步呢？有什么工作可以继续深入？\n\nJSON 格式：{"answers":{"q1":string,"q2":string,"q3":string,"q4":string,"q5":string,"q6":string,"q7":string,"q8":string,"q9":string,"q10":string},"taxonomy":{"primaryTopic":string,"subtopics":string[],"methods":string[],"tasks":string[],"datasets":string[],"confidence":0-100},"candidates":[{"id":string,"type":"finding|method|question|gap|conflict|hypothesis|decision","title":string,"summary":string,"nextAction":string}]}。primaryTopic 只能有一个；subtopics 2至4个；methods 最多3个；tasks 最多2个；candidates 最多3条。`
         },
         { role: "user", content: `生成依据等级：${context.extractionLabel}\n\n${context.material}` }
-      ], { json: true, thinking: true, maxTokens: 5200 });
-      const parsed = this.parseJsonResponse(response, "AI 返回的论文提炼无法解析");
+      ], { json: true, thinking: false, maxTokens: 7200 });
+      const parsed = this.parsePaperInsightResponse(response);
       if (!parsed.answers || typeof parsed.answers !== "object") throw new Error("论文提炼缺少十问答案");
       return this.plugin.store.savePaperInsight(paper, {
         answers: parsed.answers,
@@ -517,9 +717,20 @@ class AIService {
         role: "user",
         content: `研究目标：${goal.trim() || "请识别这些论文共同研究的核心问题，并总结当前进展"}\n\n论文编号映射：\n${materials.map((paper, index) => `[P${index + 1}] ${paper.path} — ${paper.title}`).join("\n")}\n\n结构化材料：\n${JSON.stringify(materials)}`
       }
-    ], { json: true, thinking: true, maxTokens: 5200 });
-    const parsed = this.parseJsonResponse(response, "AI 返回的综合进展无法解析");
-    if (!parsed.sections?.conclusion) throw new Error("AI 综合结果缺少当前结论");
+    ], { json: true, thinking: true, maxTokens: 9000 });
+    const rawResult = this.parseSynthesisResponse(response);
+    const parsed = this.normalizeSynthesisResult(rawResult);
+    if (!parsed.sections?.conclusion) {
+      console.warn("Research OS synthesis normalization failed", {
+        responseLength: String(response || "").length,
+        jsonParseSuccess: true,
+        normalizeSuccess: false,
+        topLevelKeys: Object.keys(rawResult || {}).slice(0, 20),
+        missingRequiredFields: ["sections.conclusion"],
+        suspectedTruncation: /[,{]\s*$/.test(String(response || "").trim())
+      });
+      throw new Error("AI 综合结果缺少当前结论");
+    }
     const validPaths = new Set(selected.map(paper => paper.path));
     parsed.evidence = (parsed.evidence || []).map(item => ({
       claim: String(item.claim || "").trim(),
@@ -527,6 +738,63 @@ class AIService {
       role: ["support", "oppose", "background", "method"].includes(item.role) ? item.role : "support",
       confidence: Math.max(0, Math.min(100, Number(item.confidence || 0)))
     })).filter(item => item.claim && item.paperPaths.length);
+    return parsed;
+  }
+
+  parseSynthesisResponse(content) {
+    const raw = String(content || "");
+    const clean = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    if (!clean) {
+      console.warn("Research OS synthesis parse failed", {
+        responseLength: raw.length,
+        jsonParseSuccess: false,
+        normalizeSuccess: false,
+        topLevelKeys: [],
+        missingRequiredFields: ["response"],
+        suspectedTruncation: false
+      });
+      throw new Error("AI 返回的综合进展无法解析");
+    }
+    const extracted = this.extractJsonObject(clean);
+    const partial = this.extractPartialJsonObject(clean);
+    for (const candidate of [clean, extracted, partial].filter(Boolean)) {
+      for (const repaired of [
+        candidate,
+        this.escapeJsonStringControlChars(candidate),
+        this.repairJson(candidate),
+        this.escapeJsonStringControlChars(this.repairJson(candidate))
+      ]) {
+        try {
+          return JSON.parse(repaired);
+        } catch { /* Try the next golden-compatible recovery stage. */ }
+      }
+    }
+    console.warn("Research OS synthesis parse failed", {
+      responseLength: raw.length,
+      jsonParseSuccess: false,
+      normalizeSuccess: false,
+      topLevelKeys: [],
+      missingRequiredFields: ["JSON object"],
+      suspectedTruncation: /[,{]\s*$/.test(clean)
+    });
+    throw new Error("AI 返回的综合进展无法解析");
+  }
+
+  normalizeSynthesisResult(result) {
+    const parsed = result && typeof result === "object" ? result : {};
+    const sourceSections = parsed.sections && typeof parsed.sections === "object" ? parsed.sections : {};
+    const pick = (...values) => values.map(value => String(value || "").trim()).find(Boolean) || "";
+    parsed.sections = {
+      conclusion: pick(sourceSections.conclusion, sourceSections.currentConclusion, sourceSections.summary, sourceSections["当前结论"], parsed.conclusion, parsed.currentConclusion, parsed.summary, parsed.result),
+      consensus: pick(sourceSections.consensus, sourceSections.commonGround, sourceSections.agreement, sourceSections["共识"], parsed.consensus),
+      conflicts: pick(sourceSections.conflicts, sourceSections.differences, sourceSections.disagreements, sourceSections["冲突"], sourceSections["差异"], parsed.conflicts, parsed.differences),
+      methods: pick(sourceSections.methods, sourceSections.methodInsights, sourceSections["方法"], parsed.methods),
+      gaps: pick(sourceSections.gaps, sourceSections.openQuestions, sourceSections.researchGaps, sourceSections["研究空白"], parsed.gaps),
+      nextSteps: pick(sourceSections.nextSteps, sourceSections.nextStep, sourceSections.futureWork, sourceSections["下一步"], parsed.nextSteps, parsed.nextAction)
+    };
+    if (!parsed.title) parsed.title = pick(parsed.topic, parsed.sections.conclusion).slice(0, 48) || "阶段性研究进展";
+    if (!parsed.topic) parsed.topic = pick(parsed.classification?.primaryTopic, parsed.title, "未分类");
+    if (!parsed.classification || typeof parsed.classification !== "object") parsed.classification = {};
     return parsed;
   }
 
