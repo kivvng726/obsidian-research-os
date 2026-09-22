@@ -1,4 +1,5 @@
 const { TFile, loadPdfJs } = require("obsidian");
+const { normalizePaper } = require("./paper-model");
 
 class ResearchStore {
   constructor(app) {
@@ -10,7 +11,7 @@ class ResearchStore {
     this.items = this.app.vault.getMarkdownFiles().map(file => {
       const cache = this.app.metadataCache.getFileCache(file);
       const fm = cache?.frontmatter || {};
-      return {
+      const item = {
         file,
         path: file.path,
         name: file.basename,
@@ -71,6 +72,9 @@ class ResearchStore {
         mtime: file.stat.mtime,
         raw: fm
       };
+      return item.type === "literature" ? normalizePaper(item, {
+        normalizeVaultPath: value => this.normalizeVaultPath(value)
+      }) : item;
     }).filter(item => item.type && !item.path.startsWith("90 Templates/"));
     return this.items;
   }
