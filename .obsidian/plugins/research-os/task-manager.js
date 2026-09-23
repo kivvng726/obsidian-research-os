@@ -77,7 +77,7 @@ class TaskManager {
 
   async startTask(id) { return this.transition(id, ["pending"], { status: "running", stage: "running", startedAt: now() }); }
   async updateProgress(id, progress, stage = "") { return this.updateTask(id, { progress, ...(stage ? { stage } : {}) }); }
-  async completeTask(id, resultMeta = null) { return this.transition(id, ["running"], { status: "completed", stage: "done", progress: 100, completedAt: now(), resultMeta: resultMeta && typeof resultMeta === "object" ? { ...resultMeta } : null }); }
+  async completeTask(id, resultMeta = null) { return this.transition(id, ["running"], { status: "completed", stage: "completed", progress: 100, completedAt: now(), resultMeta: resultMeta && typeof resultMeta === "object" ? { ...resultMeta } : null }); }
   async failTask(id, error, stage = "") { return this.transition(id, ["running"], { status: "failed", stage: stage || "failed", error: safeError(error, stage), completedAt: now() }); }
   async cancelTask(id) { return this.transition(id, ["pending", "running"], { status: "cancelled", stage: "cancelled", completedAt: now() }); }
 
@@ -86,6 +86,24 @@ class TaskManager {
     if (!task || task.status !== "failed" || task.retryCount >= task.maxRetries) return null;
     Object.assign(task, { status: "pending", stage: "queued", progress: 0, retryCount: task.retryCount + 1, error: null, startedAt: "", completedAt: "", updatedAt: now() });
     await this.persist(); return this.getTask(id);
+  }
+
+  async prepareInterruptedRecovery(id) {
+    const task = this.tasks.get(id);
+    if (!task || task.status !== "running") return null;
+    const recoveryFromStage = String(task.stage || "queued");
+    const payload = {
+      ...task.payload,
+      recoveryFromStage,
+      recoveryCount: Math.max(0, Number(task.payload?.recoveryCount) || 0) + 1,
+      lastRecoveryAt: now()
+    };
+    return this.transition(id, ["running"], {
+      status: "pending",
+      stage: recoveryFromStage,
+      payload,
+      error: task.error || safeError("Task interrupted by plugin restart", recoveryFromStage)
+    });
   }
 
   async transition(id, allowed, patch) {

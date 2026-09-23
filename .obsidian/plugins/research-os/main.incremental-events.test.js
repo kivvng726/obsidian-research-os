@@ -41,5 +41,13 @@ Module._load = originalLoad;
     ["update", "03 Literature/Debounced.md"], ["render"]
   ]);
   assert.equal(plugin.fileRefreshTimers.size, 0);
+  const recovered = [];
+  plugin.taskManager = { listTasks: filter => {
+    assert.deepEqual(filter, { type: "paper_ingestion", status: "running" });
+    return [{ id: "ingestion", type: "paper_ingestion", status: "running" }];
+  } };
+  plugin.store.recoverIngestionTask = async task => recovered.push(task.id);
+  await plugin.recoverInterruptedIngestionTasks();
+  assert.deepEqual(recovered, ["ingestion"]);
   console.log("main incremental vault event tests passed");
 })().catch(error => { console.error(error); process.exitCode = 1; });

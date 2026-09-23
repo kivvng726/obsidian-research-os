@@ -60,6 +60,10 @@ function createPlugin(files = new Map()) {
   const interruptedIds = await interrupted.load();
   assert.deepEqual(interruptedIds, ["running"]);
   assert.equal(interrupted.getTask("running").status, "running");
+  const prepared = await interrupted.prepareInterruptedRecovery("running");
+  assert.equal(prepared.status, "pending");
+  assert.equal(prepared.payload.recoveryFromStage, "running");
+  assert.equal(prepared.payload.recoveryCount, 1);
 
   files.set(interrupted.storagePath, "{broken");
   const corrupt = new TaskManager(createPlugin(files));

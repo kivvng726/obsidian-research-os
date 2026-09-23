@@ -4,6 +4,7 @@ const { ResearchView } = require("./research-view");
 const { AIService, ResearchAISettingTab } = require("./ai-service");
 const { ThemeService } = require("./theme-service");
 const { TaskManager } = require("./task-manager");
+const { BackendClient } = require("./backend-client");
 
 const VIEW_TYPE = "research-os-view";
 
@@ -14,6 +15,7 @@ module.exports = class ResearchOSPlugin extends Plugin {
     this.theme = new ThemeService(this);
     this.taskManager = new TaskManager(this);
     this.store.taskManager = this.taskManager;
+    this.backendClient = new BackendClient();
     this.addSettingTab(new ResearchAISettingTab(this.app, this));
     this.registerView(VIEW_TYPE, leaf => new ResearchView(leaf, this));
 
@@ -57,6 +59,7 @@ module.exports = class ResearchOSPlugin extends Plugin {
 
     await this.bootstrap();
     await this.taskManager.load();
+    await this.recoverInterruptedIngestionTasks();
     this.fileRefreshTimers = new Map();
     const refreshFile = file => this.scheduleVaultFileRefresh(file);
     this.registerEvent(this.app.vault.on("create", refreshFile));
@@ -96,6 +99,17 @@ module.exports = class ResearchOSPlugin extends Plugin {
       await this.theme.initialize();
     } catch (error) {
       console.error("Research OS theme initialization failed", error);
+    }
+  }
+
+  async recoverInterruptedIngestionTasks() {
+    const interrupted = this.taskManager.listTasks({ type: "paper_ingestion", status: "running" });
+    for (const task of interrupted) {
+      try {
+        await this.store.recoverIngestionTask(task);
+      } catch (error) {
+        console.warn("Research OS ingestion recovery failed", { taskId: task.id, stage: task.stage, error });
+      }
     }
   }
 

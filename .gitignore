@@ -43,6 +43,10 @@ release/
 dist-test/
 research-os-test.local.json
 .env.local
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
 node_modules/
 
 # OS and editor files

@@ -26,6 +26,7 @@ function taskPlugin() {
   store.ensureFolder = async () => {};
   store.uniqueAttachmentPath = async path => path;
   store.create = async () => ({ path: "03 Literature/Papers/Imported.md" });
+  store.loadFile = async path => ({ path, type: "literature" });
   await store.importPdf({ name: "Imported.pdf", arrayBuffer: async () => new Uint8Array([37, 80, 68, 70]).buffer });
   assert.equal(ingestionManager.listTasks({ type: "paper_ingestion" })[0].status, "completed");
   await assert.rejects(() => store.importPdf({ name: "Broken.pdf", arrayBuffer: async () => { throw new Error("read failed"); } }));

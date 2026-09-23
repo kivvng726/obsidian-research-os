@@ -1,5 +1,6 @@
 const { TFile, loadPdfJs } = require("obsidian");
 const { normalizePaper } = require("./paper-model");
+const { createHash } = require("crypto");
 
 class ResearchStore {
   constructor(app) {
@@ -554,7 +555,7 @@ ${candidates.length ? candidates.map(candidate => `### ${candidate.title}\n\n${c
     return this.get(insight.path);
   }
 
-  async create(type, title, project = "", metadata = {}) {
+  async create(type, title, project = "", metadata = {}, options = {}) {
     const config = {
       literature: { folder: "03 Literature/Papers", status: "inbox", prefix: "" },
       evidence: { folder: "04 Notes/Evidence", status: "draft", prefix: "EV " },
@@ -585,7 +586,7 @@ doi: ${yamlString(metadata.doi)}
 reading_progress: 0` : "";
     const content = `---\ntype: ${type}\ntitle: ${yamlString(title)}\nstatus: ${config.status}${projectYaml}${literatureFields}\ncreated: ${date}\nupdated: ${date}\ntags: []\n---\n\n# ${title}\n\n## 摘要\n\n\n## 高亮与摘录\n\n\n## 我的笔记\n\n\n## 待办\n\n- [ ] \n`;
     const file = await this.app.vault.create(path, content);
-    await this.load();
+    if (!options.skipLoad) await this.load();
     return file;
   }
 
@@ -598,27 +599,187 @@ reading_progress: 0` : "";
     }
   }
 
-  async importPdf(source) {
-    const task = await this.taskManager?.createTask("paper_ingestion", { fileName: String(source?.name || "") });
-    if (task) await this.taskManager.startTask(task.id);
+  async updateIngestionTask(taskId, stage, progress, context = {}) {
+    if (!taskId || !this.taskManager) return null;
+    await this.taskManager.updateTask(taskId, { payload: context });
+    return this.taskManager.updateProgress(taskId, progress, stage);
+  }
+
+  sameBinary(left, right) {
+    if (!(left instanceof ArrayBuffer) || !(right instanceof ArrayBuffer) || left.byteLength !== right.byteLength) return false;
+    const a = new Uint8Array(left);
+    const b = new Uint8Array(right);
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  hashBinary(buffer) {
+    if (!(buffer instanceof ArrayBuffer)) throw new Error("PDF binary is unavailable for identity verification");
+    return createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+  }
+
+  async reusableAttachmentPath(candidatePath, bytes) {
+    const existing = this.app.vault.getAbstractFileByPath(candidatePath);
+    if (!existing || typeof this.app.vault.readBinary !== "function") return "";
     try {
-    const bytes = await source.arrayBuffer();
-    const metadata = this.extractPdfMetadata(bytes, source.name);
-    const folder = "09 Attachments";
-    await this.ensureFolder(folder);
-    const attachmentPath = await this.uniqueAttachmentPath(`${folder}/${source.name}`);
-    await this.app.vault.createBinary(attachmentPath, bytes);
-    const note = await this.create("literature", metadata.title, "", {
-      authors: metadata.authors,
-      year: metadata.year,
-      category: "未分类",
-      pdf: attachmentPath,
-      doi: metadata.doi
-    });
-    await this.taskManager?.completeTask(task?.id, { paperPath: note.path, attachmentPath });
-    return { note, attachmentPath, metadata };
+      return this.sameBinary(await this.app.vault.readBinary(existing), bytes) ? candidatePath : "";
     } catch (error) {
-      await this.taskManager?.failTask(task?.id, error, "import");
+      console.warn("Research OS could not compare an existing attachment", error);
+      return "";
+    }
+  }
+
+  existingPaperForPdf(attachmentPath) {
+    return this.byType("literature").find(item => this.normalizeVaultPath(item.pdfPath || item.pdf || item.attachment || "") === attachmentPath) || null;
+  }
+
+  findPaperFileForPdf(attachmentPath) {
+    const known = this.existingPaperForPdf(attachmentPath)?.file;
+    if (known) return known;
+    return this.app.vault.getMarkdownFiles().find(file => {
+      const fm = this.app.metadataCache.getFileCache(file)?.frontmatter || {};
+      return fm.type === "literature" && this.normalizeVaultPath(fm.pdf || fm.attachment || "") === attachmentPath;
+    }) || null;
+  }
+
+  paperReferencesPdf(file, attachmentPath) {
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter || {};
+    return this.normalizeVaultPath(fm.pdf || fm.attachment || "") === attachmentPath;
+  }
+
+  async readPdfForRecovery(attachmentPath, expectedHash = "") {
+    const file = this.app.vault.getAbstractFileByPath(attachmentPath);
+    if (!file || typeof this.app.vault.readBinary !== "function") throw new Error("Recovery could not find the copied PDF");
+    const bytes = await this.app.vault.readBinary(file);
+    const actualHash = this.hashBinary(bytes);
+    if (expectedHash && actualHash !== expectedHash) throw new Error("Recovery found a different PDF at the recorded attachment path");
+    return { file, bytes, actualHash };
+  }
+
+  getIngestionDebugState(taskId) {
+    const task = this.taskManager?.getTask(taskId);
+    if (!task || task.type !== "paper_ingestion") return null;
+    return { id: task.id, type: task.type, status: task.status, stage: task.stage, progress: task.progress, targetPdfPath: task.payload.targetPdfPath || "", paperPath: task.payload.paperPath || "" };
+  }
+
+  async importPdf(source) {
+    const sourceFileName = String(source?.name || "").trim();
+    const task = await this.taskManager?.createTask("paper_ingestion", { sourceFileName });
+    const taskId = task?.id || "";
+    const context = { sourceFileName };
+    let stage = "queued";
+    if (task) {
+      await this.taskManager.startTask(taskId);
+      await this.updateIngestionTask(taskId, stage, 0, context);
+    }
+
+    try {
+      stage = "copy";
+      await this.updateIngestionTask(taskId, stage, 10, context);
+      const bytes = await source.arrayBuffer();
+      context.sourceHash = this.hashBinary(bytes);
+      const folder = "09 Attachments";
+      await this.ensureFolder(folder);
+      const preferredPath = `${folder}/${sourceFileName}`;
+      const reusedAttachmentPath = await this.reusableAttachmentPath(preferredPath, bytes);
+      const attachmentPath = reusedAttachmentPath || await this.uniqueAttachmentPath(preferredPath);
+      context.targetPdfPath = attachmentPath;
+      await this.updateIngestionTask(taskId, stage, 10, context);
+      if (!reusedAttachmentPath) await this.app.vault.createBinary(attachmentPath, bytes);
+
+      stage = "extract";
+      await this.updateIngestionTask(taskId, stage, 30, context);
+      let metadata;
+      try {
+        metadata = this.extractPdfMetadata(bytes, sourceFileName);
+      } catch (error) {
+        console.warn("Research OS PDF metadata extraction failed; using filename fallback", error);
+        metadata = { title: sourceFileName.replace(/\.pdf$/i, "").trim() || "Untitled paper", authors: "", year: "", doi: "" };
+        context.extractWarning = "basic metadata unavailable";
+      }
+
+      stage = "metadata";
+      await this.updateIngestionTask(taskId, stage, 50, context);
+      metadata = { ...metadata, title: String(metadata?.title || sourceFileName.replace(/\.pdf$/i, "").trim() || "Untitled paper") };
+
+      stage = "persist";
+      await this.updateIngestionTask(taskId, stage, 75, context);
+      const existingPaper = this.existingPaperForPdf(attachmentPath);
+      const note = existingPaper?.file || await this.create("literature", metadata.title, "", {
+        authors: metadata.authors,
+        year: metadata.year,
+        category: "未分类",
+        pdf: attachmentPath,
+        doi: metadata.doi
+      }, { skipLoad: true });
+      context.paperPath = note.path;
+
+      stage = "index";
+      await this.updateIngestionTask(taskId, stage, 90, context);
+      const indexedPaper = await this.loadFile(note.path);
+      if (!indexedPaper) throw new Error("Imported paper could not be indexed");
+
+      await this.taskManager?.completeTask(taskId, { targetPdfPath: attachmentPath, paperPath: note.path, reusedAttachment: Boolean(reusedAttachmentPath), reusedPaper: Boolean(existingPaper) });
+      return { note, attachmentPath, metadata };
+    } catch (error) {
+      await this.taskManager?.updateTask(taskId, { payload: context });
+      await this.taskManager?.failTask(taskId, error, stage);
+      throw error;
+    }
+  }
+
+  async recoverIngestionTask(task) {
+    if (!task || task.type !== "paper_ingestion" || task.status !== "running" || !this.taskManager) return null;
+    const prepared = await this.taskManager.prepareInterruptedRecovery(task.id);
+    if (!prepared) return null;
+    const taskId = prepared.id;
+    const context = { ...prepared.payload };
+    let stage = context.recoveryFromStage || prepared.stage || "queued";
+    try {
+      await this.taskManager.startTask(taskId);
+      const attachmentPath = this.normalizeVaultPath(context.targetPdfPath || "");
+      if (!attachmentPath) throw new Error("Recovery has no recorded attachment path; the source PDF cannot be safely recreated");
+      const { bytes, actualHash } = await this.readPdfForRecovery(attachmentPath, context.sourceHash || "");
+      context.targetPdfPath = attachmentPath;
+      context.sourceHash = actualHash;
+
+      let paperFile = context.paperPath ? this.app.vault.getAbstractFileByPath(context.paperPath) : null;
+      if (paperFile && !this.paperReferencesPdf(paperFile, attachmentPath)) throw new Error("Recovery found an existing paper linked to a different PDF");
+      if (!paperFile) paperFile = this.findPaperFileForPdf(attachmentPath);
+
+      if (!paperFile) {
+        stage = "extract";
+        await this.updateIngestionTask(taskId, stage, 30, context);
+        let metadata;
+        try { metadata = this.extractPdfMetadata(bytes, context.sourceFileName || attachmentPath.split("/").pop()); }
+        catch (error) {
+          console.warn("Research OS recovery metadata extraction failed; using filename fallback", error);
+          const fallbackName = String(context.sourceFileName || attachmentPath.split("/").pop() || "Untitled paper").replace(/\.pdf$/i, "").trim();
+          metadata = { title: fallbackName || "Untitled paper", authors: "", year: "", doi: "" };
+          context.extractWarning = "basic metadata unavailable";
+        }
+        stage = "metadata";
+        await this.updateIngestionTask(taskId, stage, 50, context);
+        stage = "persist";
+        await this.updateIngestionTask(taskId, stage, 75, context);
+        paperFile = await this.create("literature", metadata.title || "Untitled paper", "", {
+          authors: metadata.authors,
+          year: metadata.year,
+          category: "未分类",
+          pdf: attachmentPath,
+          doi: metadata.doi
+        }, { skipLoad: true });
+      }
+
+      context.paperPath = paperFile.path;
+      stage = "index";
+      await this.updateIngestionTask(taskId, stage, 90, context);
+      const indexedPaper = await this.loadFile(paperFile.path);
+      if (!indexedPaper) throw new Error("Recovery could not index the imported paper");
+      return this.taskManager.completeTask(taskId, { targetPdfPath: attachmentPath, paperPath: paperFile.path, recovered: true });
+    } catch (error) {
+      await this.taskManager.updateTask(taskId, { payload: context });
+      await this.taskManager.failTask(taskId, error, stage);
       throw error;
     }
   }
