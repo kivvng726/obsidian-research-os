@@ -9,6 +9,7 @@
 .obsidian/plugins/*
 !.obsidian/plugins/research-os/
 .obsidian/plugins/research-os/data.json
+.obsidian/plugins/research-os/tasks.json
 .obsidian/plugins/research-os/node_modules/
 .obsidian/plugins/research-os/cache/
 

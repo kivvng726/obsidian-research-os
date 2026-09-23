@@ -5,13 +5,35 @@ class ResearchStore {
   constructor(app) {
     this.app = app;
     this.items = [];
+    this.itemsByPath = new Map();
+    this.loadAllCount = 0;
+    this.singleFileParseCount = 0;
   }
 
   async load() {
-    this.items = this.app.vault.getMarkdownFiles().map(file => {
-      const cache = this.app.metadataCache.getFileCache(file);
-      const fm = cache?.frontmatter || {};
-      const item = {
+    return this.loadAll();
+  }
+
+  async loadAll() {
+    this.loadAllCount++;
+    this.itemsByPath.clear();
+    this.app.vault.getMarkdownFiles().forEach(file => {
+      const item = this.parseVaultFile(file);
+      if (item) this.itemsByPath.set(item.path, item);
+    });
+    this.rebuildItemsArray();
+    return this.items;
+  }
+
+  isMarkdownFile(file) {
+    return file instanceof TFile && (file.extension === "md" || /\.md$/i.test(file.path || ""));
+  }
+
+  parseVaultFile(file) {
+    if (!this.isMarkdownFile(file)) return null;
+    const cache = this.app.metadataCache.getFileCache(file);
+    const fm = cache?.frontmatter || {};
+    const item = {
         file,
         path: file.path,
         name: file.basename,
@@ -72,11 +94,66 @@ class ResearchStore {
         mtime: file.stat.mtime,
         raw: fm
       };
-      return item.type === "literature" ? normalizePaper(item, {
-        normalizeVaultPath: value => this.normalizeVaultPath(value)
-      }) : item;
-    }).filter(item => item.type && !item.path.startsWith("90 Templates/"));
-    return this.items;
+    if (!item.type || item.path.startsWith("90 Templates/")) return null;
+    return item.type === "literature" ? normalizePaper(item, {
+      normalizeVaultPath: value => this.normalizeVaultPath(value)
+    }) : item;
+  }
+
+  rebuildItemsArray() {
+    this.items = [...this.itemsByPath.values()];
+  }
+
+  upsertItem(item) {
+    if (!item?.path) return null;
+    this.itemsByPath.set(item.path, item);
+    this.rebuildItemsArray();
+    return item;
+  }
+
+  async loadFile(path) {
+    const cleanPath = this.normalizeVaultPath(path);
+    if (!cleanPath) return null;
+    const file = this.app.vault.getAbstractFileByPath(cleanPath);
+    if (!this.isMarkdownFile(file)) return null;
+    this.singleFileParseCount++;
+    const item = this.parseVaultFile(file);
+    if (!item) {
+      this.removeFile(cleanPath);
+      return null;
+    }
+    return this.upsertItem(item);
+  }
+
+  async updateFile(path) {
+    const item = await this.loadFile(path);
+    if (!item) this.removeFile(path);
+    return item;
+  }
+
+  removeFile(path) {
+    const cleanPath = this.normalizeVaultPath(path);
+    if (!cleanPath || !this.itemsByPath.delete(cleanPath)) return false;
+    this.rebuildItemsArray();
+    return true;
+  }
+
+  async renameFile(oldPath, newPath) {
+    this.removeFile(oldPath);
+    return this.loadFile(newPath);
+  }
+
+  getByPath(path) {
+    return this.itemsByPath.get(this.normalizeVaultPath(path)) || null;
+  }
+
+  getDebugStats() {
+    return { loadAllCount: this.loadAllCount, singleFileParseCount: this.singleFileParseCount };
+  }
+
+  resetDebugStats() {
+    this.loadAllCount = 0;
+    this.singleFileParseCount = 0;
   }
 
   inferType(path) {
@@ -153,7 +230,7 @@ class ResearchStore {
   }
 
   get(path) {
-    return this.items.find(item => item.path === path);
+    return this.getByPath(path);
   }
 
   getPaperInsight(paperPath) {
@@ -522,6 +599,9 @@ reading_progress: 0` : "";
   }
 
   async importPdf(source) {
+    const task = await this.taskManager?.createTask("paper_ingestion", { fileName: String(source?.name || "") });
+    if (task) await this.taskManager.startTask(task.id);
+    try {
     const bytes = await source.arrayBuffer();
     const metadata = this.extractPdfMetadata(bytes, source.name);
     const folder = "09 Attachments";
@@ -535,7 +615,12 @@ reading_progress: 0` : "";
       pdf: attachmentPath,
       doi: metadata.doi
     });
+    await this.taskManager?.completeTask(task?.id, { paperPath: note.path, attachmentPath });
     return { note, attachmentPath, metadata };
+    } catch (error) {
+      await this.taskManager?.failTask(task?.id, error, "import");
+      throw error;
+    }
   }
 
   extractPdfMetadata(buffer, filename) {

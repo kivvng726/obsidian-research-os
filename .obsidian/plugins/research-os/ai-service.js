@@ -1,5 +1,6 @@
 const { PluginSettingTab, Setting, Notice, requestUrl, TFile } = require("obsidian");
 const { renderThemeSettings } = require("./theme-settings");
+const { normalizePluginData } = require("./schema-migrations");
 
 const DEFAULT_AI_SETTINGS = {
   activeThemeId: "forest-original",
@@ -127,11 +128,14 @@ class AIService {
     this.plugin = plugin;
     this.app = plugin.app;
     this.settings = { ...DEFAULT_AI_SETTINGS };
+    this.pluginDataSchemaVersion = 0;
     this.insightJobs = new Map();
   }
 
   async load() {
-    this.settings = { ...DEFAULT_AI_SETTINGS, ...(await this.plugin.loadData() || {}) };
+    const normalizedData = normalizePluginData(await this.plugin.loadData());
+    this.pluginDataSchemaVersion = normalizedData.schemaVersion;
+    this.settings = { ...DEFAULT_AI_SETTINGS, ...normalizedData.data };
     if (!this.settings.aiApiKey && this.settings.deepseekApiKey) this.settings.aiApiKey = this.settings.deepseekApiKey;
     if (!this.settings.aiBaseUrl && this.settings.deepseekBaseUrl) this.settings.aiBaseUrl = this.settings.deepseekBaseUrl;
     if (!this.settings.aiModel && this.settings.deepseekModel) this.settings.aiModel = this.settings.deepseekModel;
@@ -608,6 +612,9 @@ class AIService {
       const context = await this.paperInsightContext(paper);
       const existing = this.plugin.store.getPaperInsight(paper.path);
       if (!force && existing?.contentHash === context.contentHash && existing.promptVersion === "paper-insight-v2") return existing;
+      const task = await this.plugin.taskManager?.createTask("paper_ai_analysis", { paperPath: paper.path, workflow: "paper_insight" });
+      if (task) await this.plugin.taskManager.startTask(task.id);
+      try {
       const response = await this.chat([
         {
           role: "system",
@@ -617,7 +624,7 @@ class AIService {
       ], { json: true, thinking: false, maxTokens: 7200 });
       const parsed = this.parsePaperInsightResponse(response);
       if (!parsed.answers || typeof parsed.answers !== "object") throw new Error("论文提炼缺少十问答案");
-      return this.plugin.store.savePaperInsight(paper, {
+      const saved = await this.plugin.store.savePaperInsight(paper, {
         answers: parsed.answers,
         taxonomy: parsed.taxonomy || {},
         candidates: parsed.candidates || [],
@@ -627,6 +634,12 @@ class AIService {
         promptVersion: "paper-insight-v2",
         model: this.model()
       });
+      await this.plugin.taskManager?.completeTask(task?.id, { paperPath: paper.path, insightPath: saved?.path || "" });
+      return saved;
+      } catch (error) {
+        await this.plugin.taskManager?.failTask(task?.id, error, "analysis");
+        throw error;
+      }
     })().finally(() => this.insightJobs.delete(paper.path));
     this.insightJobs.set(paper.path, job);
     return job;

@@ -2,6 +2,7 @@
  * Canonical runtime shape for literature items. This module never writes
  * frontmatter: `raw` remains the original frontmatter object from Obsidian.
  */
+const { getPaperSchemaVersion } = require("./schema-migrations");
 
 function normalizeStringArray(value) {
   const values = Array.isArray(value) ? value : value == null ? [] : [value];
@@ -62,6 +63,7 @@ function normalizePaper(item, context = {}) {
   return {
     ...item,
     id: String(raw.id || item.id || item.path || ""),
+    schemaVersion: getPaperSchemaVersion(raw),
     path: String(item.path || ""),
     title: String(raw.title || item.title || item.name || "").trim(),
     authors: normalizeStringArray(raw.authors ?? item.authors),

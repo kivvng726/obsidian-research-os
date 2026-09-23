@@ -3,6 +3,7 @@ const { ResearchStore } = require("./research-store");
 const { ResearchView } = require("./research-view");
 const { AIService, ResearchAISettingTab } = require("./ai-service");
 const { ThemeService } = require("./theme-service");
+const { TaskManager } = require("./task-manager");
 
 const VIEW_TYPE = "research-os-view";
 
@@ -11,6 +12,8 @@ module.exports = class ResearchOSPlugin extends Plugin {
     this.store = new ResearchStore(this.app);
     this.ai = new AIService(this);
     this.theme = new ThemeService(this);
+    this.taskManager = new TaskManager(this);
+    this.store.taskManager = this.taskManager;
     this.addSettingTab(new ResearchAISettingTab(this.app, this));
     this.registerView(VIEW_TYPE, leaf => new ResearchView(leaf, this));
 
@@ -53,14 +56,17 @@ module.exports = class ResearchOSPlugin extends Plugin {
     });
 
     await this.bootstrap();
-    const refresh = this.debounce(() => this.refreshViews(), 350);
-    this.registerEvent(this.app.vault.on("create", refresh));
-    this.registerEvent(this.app.vault.on("delete", refresh));
+    await this.taskManager.load();
+    this.fileRefreshTimers = new Map();
+    const refreshFile = file => this.scheduleVaultFileRefresh(file);
+    this.registerEvent(this.app.vault.on("create", refreshFile));
+    this.registerEvent(this.app.vault.on("delete", file => this.removeVaultFile(file)));
     this.registerEvent(this.app.vault.on("delete", file => {
       if (file.path === this.ai.settings.customTheme?.backgroundPath) this.theme.useForest();
     }));
-    this.registerEvent(this.app.vault.on("modify", refresh));
-    this.registerEvent(this.app.metadataCache.on("changed", refresh));
+    this.registerEvent(this.app.vault.on("modify", refreshFile));
+    this.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.renameVaultFile(file, oldPath)));
+    this.registerEvent(this.app.metadataCache.on("changed", refreshFile));
 
     this.app.workspace.onLayoutReady(async () => {
       await this.store.load();
@@ -123,9 +129,46 @@ module.exports = class ResearchOSPlugin extends Plugin {
     };
   }
 
-  async refreshViews() {
-    await this.store.load();
+  scheduleVaultFileRefresh(file) {
+    if (!file?.path) return;
+    const existing = this.fileRefreshTimers.get(file.path);
+    if (existing) clearTimeout(existing);
+    this.fileRefreshTimers.set(file.path, setTimeout(() => {
+      this.fileRefreshTimers.delete(file.path);
+      this.refreshVaultFile(file).catch(error => console.error("Research OS incremental file refresh failed", error));
+    }, 350));
+  }
+
+  async refreshVaultFile(file) {
+    await this.store.updateFile(file.path);
+    this.renderViews();
+  }
+
+  async removeVaultFile(file) {
+    if (!file?.path) return;
+    const timer = this.fileRefreshTimers.get(file.path);
+    if (timer) clearTimeout(timer);
+    this.fileRefreshTimers.delete(file.path);
+    this.store.removeFile(file.path);
+    this.renderViews();
+  }
+
+  async renameVaultFile(file, oldPath) {
+    if (!file?.path) return;
+    const timer = this.fileRefreshTimers.get(oldPath);
+    if (timer) clearTimeout(timer);
+    this.fileRefreshTimers.delete(oldPath);
+    await this.store.renameFile(oldPath, file.path);
+    this.renderViews();
+  }
+
+  renderViews() {
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => leaf.view.render());
+  }
+
+  async refreshViews() {
+    await this.store.loadAll();
+    this.renderViews();
   }
 
   async openResearchOS(focus = true) {
@@ -138,6 +181,9 @@ module.exports = class ResearchOSPlugin extends Plugin {
   }
 
   onunload() {
+    this.taskManager?.persist().catch(error => console.warn("Research OS task state unload persistence failed", error));
+    this.fileRefreshTimers?.forEach(timer => clearTimeout(timer));
+    this.fileRefreshTimers?.clear();
     this.app.workspace.detachLeavesOfType(VIEW_TYPE);
   }
 };
