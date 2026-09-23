@@ -2,6 +2,10 @@
 
 This is an optional localhost-only handshake service for Research OS. It does not read or write the Obsidian Vault, call AI providers, or implement RAG.
 
+## Derived storage
+
+`backend/.data/research-os.db` is rebuildable derived storage. The Obsidian Vault remains the source of truth. The current database only stores Document and Chunk metadata/text fixtures; it has no PDF parsing, embeddings, retrieval, or RAG.
+
 ## Development setup
 
 Requires Python 3.11 or newer.
