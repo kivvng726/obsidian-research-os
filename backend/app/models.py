@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def utc_now() -> datetime:
@@ -56,3 +56,16 @@ class EvidenceSpan(BaseModel):
     start_offset: int | None = Field(default=None, ge=0)
     end_offset: int | None = Field(default=None, ge=0)
     source_text_hash: str = Field(min_length=1)
+
+
+class SearchResult(BaseModel):
+    model_config = ConfigDict(serialize_by_alias=True)
+    chunk_id: str = Field(serialization_alias="chunkId")
+    document_id: str = Field(serialization_alias="documentId")
+    paper_id: str = Field(serialization_alias="paperId")
+    page_number: int | None = Field(serialization_alias="pageNumber")
+    text: str
+    start_offset: int | None = Field(serialization_alias="startOffset")
+    end_offset: int | None = Field(serialization_alias="endOffset")
+    score: float
+    rank: int = Field(ge=1)

@@ -33,3 +33,7 @@ python -m pytest
 ## PDF indexing API
 
 `POST /documents/index` accepts a runtime Vault root plus a Vault-relative PDF path. The backend only reads that PDF after path-containment validation; it never writes to the Vault. It stores rebuildable page-aware chunks in SQLite and currently provides no embeddings or retrieval.
+
+## Keyword retrieval
+
+`POST /search` performs chunk-level keyword retrieval with SQLite FTS5 and BM25. Results use `score = -bm25`, so higher scores are more relevant. This is not the Obsidian metadata search UI and does not include embeddings, vector search, or RAG.

@@ -4,9 +4,9 @@ import os
 import sqlite3
 from pathlib import Path
 
-from .models import Chunk, Document
+from .models import Chunk, Document, SearchResult
 
-DB_SCHEMA_VERSION = 1
+DB_SCHEMA_VERSION = 2
 
 
 def default_database_path() -> Path:
@@ -25,6 +25,7 @@ def init_database(path: str | Path | None = None) -> Path:
     database_path = Path(path) if path else default_database_path()
     database_path.parent.mkdir(parents=True, exist_ok=True)
     with get_connection(database_path) as connection:
+        current_version = connection.execute("PRAGMA user_version").fetchone()[0]
         connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS documents (
@@ -58,6 +59,14 @@ def init_database(path: str | Path | None = None) -> Path:
             CREATE INDEX IF NOT EXISTS idx_chunks_paper_id ON chunks(paper_id);
             """
         )
+        connection.execute("""CREATE VIRTUAL TABLE IF NOT EXISTS chunk_fts USING fts5(
+            chunk_id UNINDEXED, paper_id UNINDEXED, document_id UNINDEXED, text,
+            tokenize='unicode61'
+        )""")
+        if current_version < 2:
+            connection.execute("DELETE FROM chunk_fts")
+            connection.execute("""INSERT INTO chunk_fts (chunk_id, paper_id, document_id, text)
+                                SELECT id, paper_id, document_id, text FROM chunks""")
         connection.execute(f"PRAGMA user_version = {DB_SCHEMA_VERSION}")
     return database_path
 
@@ -84,6 +93,15 @@ class RagStore:
 
     def _connection(self) -> sqlite3.Connection:
         return get_connection(self.path)
+
+    @staticmethod
+    def _insert_fts(connection: sqlite3.Connection, chunk: Chunk) -> None:
+        connection.execute("INSERT INTO chunk_fts (chunk_id, paper_id, document_id, text) VALUES (?, ?, ?, ?)",
+                           (chunk.id, chunk.paper_id, chunk.document_id, chunk.text))
+
+    @staticmethod
+    def _delete_document_fts(connection: sqlite3.Connection, document_id: str) -> None:
+        connection.execute("DELETE FROM chunk_fts WHERE document_id = ?", (document_id,))
 
     def upsert_document(self, document: Document) -> Document:
         with self._connection() as connection:
@@ -112,6 +130,7 @@ class RagStore:
 
     def delete_document(self, document_id: str) -> bool:
         with self._connection() as connection:
+            self._delete_document_fts(connection, document_id)
             return connection.execute("DELETE FROM documents WHERE id = ?", (document_id,)).rowcount > 0
 
     def upsert_chunk(self, chunk: Chunk) -> Chunk:
@@ -125,6 +144,9 @@ class RagStore:
                 (chunk.id, chunk.document_id, chunk.paper_id, chunk.page_number, chunk.text, chunk.start_offset,
                  chunk.end_offset, chunk.chunk_index, chunk.content_hash, _timestamp(chunk.created_at), _timestamp(chunk.updated_at)),
             )
+            self._delete_document_fts(connection, chunk.document_id)
+            for indexed_chunk in connection.execute("SELECT * FROM chunks WHERE document_id = ? ORDER BY chunk_index", (chunk.document_id,)):
+                self._insert_fts(connection, _chunk_from_row(indexed_chunk))
         return self.get_chunk(chunk.id)  # type: ignore[return-value]
 
     def get_chunk(self, chunk_id_value: str) -> Chunk | None:
@@ -137,12 +159,14 @@ class RagStore:
 
     def delete_chunks_by_document(self, document_id: str) -> int:
         with self._connection() as connection:
+            self._delete_document_fts(connection, document_id)
             return connection.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,)).rowcount
 
     def replace_document_chunks(self, document_id: str, chunks: list[Chunk]) -> list[Chunk]:
         if any(chunk.document_id != document_id for chunk in chunks):
             raise ValueError("all chunks must belong to document_id")
         with self._connection() as connection:
+            self._delete_document_fts(connection, document_id)
             connection.execute("DELETE FROM chunks WHERE document_id = ?", (document_id,))
             for chunk in chunks:
                 connection.execute(
@@ -151,6 +175,7 @@ class RagStore:
                     (chunk.id, chunk.document_id, chunk.paper_id, chunk.page_number, chunk.text, chunk.start_offset,
                      chunk.end_offset, chunk.chunk_index, chunk.content_hash, _timestamp(chunk.created_at), _timestamp(chunk.updated_at)),
                 )
+                self._insert_fts(connection, chunk)
         return self.list_chunks_by_document(document_id)
 
     def replace_document(self, document: Document, chunks: list[Chunk]) -> list[Chunk]:
@@ -167,6 +192,7 @@ class RagStore:
                 (document.id, document.paper_id, document.type, document.source_path, document.content_hash,
                  document.parser_version, _timestamp(document.created_at), _timestamp(document.updated_at)),
             )
+            self._delete_document_fts(connection, document.id)
             connection.execute("DELETE FROM chunks WHERE document_id = ?", (document.id,))
             for chunk in chunks:
                 connection.execute(
@@ -175,4 +201,36 @@ class RagStore:
                     (chunk.id, chunk.document_id, chunk.paper_id, chunk.page_number, chunk.text, chunk.start_offset,
                      chunk.end_offset, chunk.chunk_index, chunk.content_hash, _timestamp(chunk.created_at), _timestamp(chunk.updated_at)),
                 )
+                self._insert_fts(connection, chunk)
         return self.list_chunks_by_document(document.id)
+
+    def search_chunks_keyword(self, query: str, top_k: int = 10, paper_ids: list[str] | None = None) -> list[SearchResult]:
+        safe_query = safe_fts_query(query)
+        if not safe_query:
+            raise ValueError("query must contain searchable text")
+        limit = min(50, max(1, int(top_k)))
+        filters = ["chunk_fts MATCH ?"]
+        params: list[object] = [safe_query]
+        if paper_ids:
+            filters.append(f"chunk_fts.paper_id IN ({','.join('?' for _ in paper_ids)})")
+            params.extend(paper_ids)
+        sql = f"""SELECT chunk_fts.chunk_id, chunk_fts.document_id, chunk_fts.paper_id,
+                         chunks.page_number, chunks.text, chunks.start_offset, chunks.end_offset,
+                         -bm25(chunk_fts) AS score
+                  FROM chunk_fts JOIN chunks ON chunks.id = chunk_fts.chunk_id
+                  WHERE {' AND '.join(filters)}
+                  ORDER BY bm25(chunk_fts), chunks.chunk_index, chunk_fts.chunk_id
+                  LIMIT ?"""
+        params.append(limit)
+        with self._connection() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return [SearchResult(chunk_id=row["chunk_id"], document_id=row["document_id"], paper_id=row["paper_id"],
+                             page_number=row["page_number"], text=row["text"], start_offset=row["start_offset"],
+                             end_offset=row["end_offset"], score=float(row["score"]), rank=index + 1)
+                for index, row in enumerate(rows)]
+
+
+def safe_fts_query(query: str) -> str:
+    import re
+    tokens = re.findall(r"\w+", str(query or ""), flags=re.UNICODE)
+    return " AND ".join(f'"{token}"' for token in tokens)

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from .indexing import IndexDocumentRequest, IndexDocumentResponse, IndexingError, index_pdf
 from .storage import RagStore
+from .retrieval import SearchRequest, SearchResponse, search_keyword
 
 BACKEND_VERSION = "0.1.0"
 API_VERSION = 1
@@ -26,3 +27,8 @@ def index_document(request: IndexDocumentRequest) -> IndexDocumentResponse:
     except IndexingError as error:
         from fastapi import HTTPException
         raise HTTPException(status_code=error.status_code, detail=error.message) from None
+
+
+@app.post("/search", response_model=SearchResponse)
+def search(request: SearchRequest) -> SearchResponse:
+    return search_keyword(request, RagStore())

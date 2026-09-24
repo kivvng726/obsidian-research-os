@@ -69,6 +69,12 @@ class BackendClient {
     }
     return body;
   }
+
+  async searchChunks(input) {
+    const body = await this.requestJson("POST", "/search", input);
+    if (body?.mode !== "keyword" || !Array.isArray(body.results)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend search response is invalid");
+    return body;
+  }
 }
 
 module.exports = { BackendClient, BackendClientError, DEFAULT_BACKEND_URL, SUPPORTED_BACKEND_API_VERSION };
