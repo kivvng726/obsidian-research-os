@@ -2,6 +2,9 @@ const { requestUrl } = require("obsidian");
 
 const DEFAULT_BACKEND_URL = "http://127.0.0.1:8765";
 const SUPPORTED_BACKEND_API_VERSION = 1;
+const DEFAULT_REQUEST_TIMEOUT_MS = 2000;
+const DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS = 15000;
+const DEFAULT_EMBEDDING_INDEX_TIMEOUT_MS = 60000;
 
 class BackendClientError extends Error {
   constructor(code, message, cause = null) {
@@ -15,13 +18,16 @@ class BackendClientError extends Error {
 class BackendClient {
   constructor(options = {}) {
     this.baseUrl = String(options.baseUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
-    this.timeoutMs = Math.max(100, Number(options.timeoutMs) || 2000);
+    this.timeoutMs = Math.max(100, Number(options.timeoutMs) || DEFAULT_REQUEST_TIMEOUT_MS);
+    this.semanticSearchTimeoutMs = Math.max(this.timeoutMs, Number(options.semanticSearchTimeoutMs) || DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS);
+    this.embeddingIndexTimeoutMs = Math.max(this.timeoutMs, Number(options.embeddingIndexTimeoutMs) || DEFAULT_EMBEDDING_INDEX_TIMEOUT_MS);
     this.request = options.request || requestUrl;
   }
 
-  async requestJson(method, path, body = null) {
+  async requestJson(method, path, body = null, options = {}) {
+    const timeoutMs = Math.max(100, Number(options.timeoutMs) || this.timeoutMs);
     let timeoutId;
-    const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new BackendClientError("BACKEND_TIMEOUT", `Backend request timed out after ${this.timeoutMs}ms`)), this.timeoutMs); });
+    const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new BackendClientError("BACKEND_TIMEOUT", `Backend request timed out after ${timeoutMs}ms`)), timeoutMs); });
     let response;
     try {
       response = await Promise.race([this.request({ url: `${this.baseUrl}${path}`, method, throw: false, ...(body === null ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }), timeout]);
@@ -71,8 +77,17 @@ class BackendClient {
   }
 
   async searchChunks(input) {
-    const body = await this.requestJson("POST", "/search", input);
-    if (body?.mode !== "keyword" || !Array.isArray(body.results)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend search response is invalid");
+    const isSemantic = input?.mode === "vector" || input?.mode === "hybrid";
+    const body = await this.requestJson("POST", "/search", input, isSemantic ? { timeoutMs: this.semanticSearchTimeoutMs } : {});
+    if (!body || !["keyword", "vector", "hybrid"].includes(body.mode) || !Array.isArray(body.results)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend search response is invalid");
+    return body;
+  }
+
+  async indexEmbeddings(input = {}) {
+    const body = await this.requestJson("POST", "/embeddings/index", input, { timeoutMs: this.embeddingIndexTimeoutMs });
+    if (!body || !["completed", "partial"].includes(body.status) || typeof body.totalChunks !== "number" || typeof body.cachedChunks !== "number" || typeof body.embeddedChunks !== "number") {
+      throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend embedding indexing response is invalid");
+    }
     return body;
   }
 }

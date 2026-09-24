@@ -69,3 +69,5 @@ class SearchResult(BaseModel):
     end_offset: int | None = Field(serialization_alias="endOffset")
     score: float
     rank: int = Field(ge=1)
+    keyword_rank: int | None = Field(default=None, serialization_alias="keywordRank")
+    vector_rank: int | None = Field(default=None, serialization_alias="vectorRank")

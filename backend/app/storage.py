@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .models import Chunk, Document, SearchResult
 
-DB_SCHEMA_VERSION = 2
+DB_SCHEMA_VERSION = 3
 
 
 def default_database_path() -> Path:
@@ -67,6 +67,14 @@ def init_database(path: str | Path | None = None) -> Path:
             connection.execute("DELETE FROM chunk_fts")
             connection.execute("""INSERT INTO chunk_fts (chunk_id, paper_id, document_id, text)
                                 SELECT id, paper_id, document_id, text FROM chunks""")
+        connection.execute("""CREATE TABLE IF NOT EXISTS chunk_embeddings (
+            chunk_id TEXT NOT NULL, model TEXT NOT NULL, dimensions INTEGER NOT NULL,
+            provider TEXT NOT NULL, content_hash TEXT NOT NULL, vector BLOB NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            UNIQUE(chunk_id, model, dimensions, provider),
+            FOREIGN KEY(chunk_id) REFERENCES chunks(id) ON DELETE CASCADE
+        )""")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_chunk_embeddings_lookup ON chunk_embeddings(provider, model, dimensions, chunk_id)")
         connection.execute(f"PRAGMA user_version = {DB_SCHEMA_VERSION}")
     return database_path
 
@@ -228,6 +236,70 @@ class RagStore:
                              page_number=row["page_number"], text=row["text"], start_offset=row["start_offset"],
                              end_offset=row["end_offset"], score=float(row["score"]), rank=index + 1)
                 for index, row in enumerate(rows)]
+
+    def list_chunks_for_embedding(self, paper_ids: list[str] | None = None) -> list[Chunk]:
+        sql = "SELECT * FROM chunks"; params: list[object] = []
+        if paper_ids:
+            sql += f" WHERE paper_id IN ({','.join('?' for _ in paper_ids)})"; params.extend(paper_ids)
+        sql += " ORDER BY paper_id, document_id, chunk_index"
+        with self._connection() as connection:
+            return [_chunk_from_row(row) for row in connection.execute(sql, params)]
+
+    def get_chunk_embedding(self, chunk_id: str, provider: str, model: str, dimensions: int, content_hash: str):
+        with self._connection() as connection:
+            return connection.execute("""SELECT vector FROM chunk_embeddings WHERE chunk_id=? AND provider=? AND model=? AND dimensions=? AND content_hash=?""",
+                                      (chunk_id, provider, model, dimensions, content_hash)).fetchone()
+
+    def count_chunk_embeddings(self, document_id: str | None = None) -> int:
+        sql = "SELECT count(*) FROM chunk_embeddings"
+        params: tuple[object, ...] = ()
+        if document_id is not None:
+            sql += " JOIN chunks ON chunks.id = chunk_embeddings.chunk_id WHERE chunks.document_id = ?"
+            params = (document_id,)
+        with self._connection() as connection:
+            return int(connection.execute(sql, params).fetchone()[0])
+
+    def has_compatible_embeddings(self, provider: str, model: str, dimensions: int,
+                                  paper_ids: list[str] | None = None) -> bool:
+        sql = """SELECT 1 FROM chunk_embeddings JOIN chunks ON chunks.id = chunk_embeddings.chunk_id
+                 WHERE chunk_embeddings.provider=? AND chunk_embeddings.model=? AND chunk_embeddings.dimensions=?
+                 AND chunk_embeddings.content_hash=chunks.content_hash"""
+        params: list[object] = [provider, model, dimensions]
+        if paper_ids:
+            sql += f" AND chunks.paper_id IN ({','.join('?' for _ in paper_ids)})"
+            params.extend(paper_ids)
+        sql += " LIMIT 1"
+        with self._connection() as connection:
+            return connection.execute(sql, params).fetchone() is not None
+
+    def upsert_chunk_embedding(self, chunk: Chunk, provider: str, model: str, dimensions: int, vector) -> None:
+        import numpy as np
+        array = np.asarray(vector, dtype=np.float32)
+        if array.ndim != 1 or array.size != dimensions: raise ValueError("embedding dimension mismatch")
+        timestamp = _timestamp(chunk.updated_at)
+        with self._connection() as connection:
+            connection.execute("""INSERT INTO chunk_embeddings (chunk_id, model, dimensions, provider, content_hash, vector, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(chunk_id, model, dimensions, provider) DO UPDATE SET
+                content_hash=excluded.content_hash, vector=excluded.vector, updated_at=excluded.updated_at""",
+                (chunk.id, model, dimensions, provider, chunk.content_hash, array.tobytes(), timestamp, timestamp))
+
+    def search_chunks_vector(self, query_vector, top_k: int, provider: str, model: str, dimensions: int, paper_ids: list[str] | None = None) -> list[SearchResult]:
+        import numpy as np
+        query = np.asarray(query_vector, dtype=np.float32)
+        if query.ndim != 1 or query.size != dimensions: raise ValueError("query vector dimension mismatch")
+        sql = """SELECT chunks.*, chunk_embeddings.vector FROM chunks JOIN chunk_embeddings ON chunks.id=chunk_embeddings.chunk_id
+                 WHERE chunk_embeddings.provider=? AND chunk_embeddings.model=? AND chunk_embeddings.dimensions=? AND chunk_embeddings.content_hash=chunks.content_hash"""
+        params: list[object] = [provider, model, dimensions]
+        if paper_ids: sql += f" AND chunks.paper_id IN ({','.join('?' for _ in paper_ids)})"; params.extend(paper_ids)
+        with self._connection() as connection: rows = connection.execute(sql, params).fetchall()
+        valid = [(row, np.frombuffer(row["vector"], dtype=np.float32)) for row in rows]
+        valid = [(row, vector) for row, vector in valid if vector.size == dimensions and np.isfinite(vector).all() and np.linalg.norm(vector) > 0]
+        query_norm = np.linalg.norm(query)
+        if not valid or query_norm == 0: return []
+        matrix = np.stack([vector for _, vector in valid]); scores = matrix.dot(query) / (np.linalg.norm(matrix, axis=1) * query_norm)
+        ranked = sorted(zip(valid, scores), key=lambda item: (-float(item[1]), item[0][0]["chunk_index"], item[0][0]["id"]))[:min(50, max(1, int(top_k)))]
+        return [SearchResult(chunk_id=row["id"], document_id=row["document_id"], paper_id=row["paper_id"], page_number=row["page_number"], text=row["text"], start_offset=row["start_offset"], end_offset=row["end_offset"], score=float(score), rank=index + 1)
+                for index, ((row, _), score) in enumerate(ranked)]
 
 
 def safe_fts_query(query: str) -> str:

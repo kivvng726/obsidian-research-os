@@ -39,7 +39,7 @@ def test_v1_migration_backfills_fts_and_searches(tmp_path) -> None:
     path = tmp_path / "v1.db"; make_v1_database(path)
     store = RagStore(path)
     with get_connection(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == DB_SCHEMA_VERSION == 2
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == DB_SCHEMA_VERSION == 3
         assert connection.execute("SELECT count(*) FROM chunk_fts").fetchone()[0] == 1
     assert store.search_chunks_keyword("legacy keyword")[0].text == "legacy keyword retrieval"
 
