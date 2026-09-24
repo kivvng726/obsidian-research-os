@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 
+from .chat import ChatConfigurationError, ChatProviderError, ChatSettings, OpenAICompatibleChatProvider
 from .config import EmbeddingConfigurationError, EmbeddingSettings
 from .embeddings import EmbeddingIndexRequest, EmbeddingIndexResponse, EmbeddingIndexStats, EmbeddingProviderError, OpenAICompatibleEmbeddingProvider, index_chunk_embeddings
 from .indexing import IndexDocumentRequest, IndexDocumentResponse, IndexingError, index_pdf
 from .storage import RagStore
 from .retrieval import SearchRequest, SearchResponse, VectorIndexEmptyError, search_hybrid, search_keyword, search_vector
+from .rag import RagQueryRequest, RagQueryResponse, run_rag_query
 
 BACKEND_VERSION = "0.1.0"
 API_VERSION = 1
@@ -32,6 +34,10 @@ def index_document(request: IndexDocumentRequest) -> IndexDocumentResponse:
 
 def embedding_provider() -> OpenAICompatibleEmbeddingProvider:
     return OpenAICompatibleEmbeddingProvider(EmbeddingSettings.from_env())
+
+
+def chat_provider() -> OpenAICompatibleChatProvider:
+    return OpenAICompatibleChatProvider(ChatSettings.from_env())
 
 
 def embedding_http_error(error: Exception) -> HTTPException:
@@ -69,4 +75,16 @@ def search(request: SearchRequest) -> SearchResponse:
             return SearchResponse(mode="hybrid", query=request.query,
                                   results=store.search_chunks_keyword(request.query, request.topK, request.paperIds),
                                   vectorAvailable=False, fallback="keyword", warning="Vector retrieval is unavailable")
+        raise embedding_http_error(error) from None
+
+
+@app.post("/rag/query", response_model=RagQueryResponse)
+def rag_query(request: RagQueryRequest) -> RagQueryResponse:
+    try:
+        return run_rag_query(request, RagStore(), embedding_provider, chat_provider)
+    except ChatConfigurationError:
+        raise HTTPException(status_code=503, detail={"code": "LLM_NOT_CONFIGURED", "message": "RAG chat provider is not configured"}) from None
+    except ChatProviderError as error:
+        raise HTTPException(status_code=503, detail={"code": error.code, "message": str(error)}) from None
+    except (EmbeddingConfigurationError, EmbeddingProviderError, VectorIndexEmptyError) as error:
         raise embedding_http_error(error) from None

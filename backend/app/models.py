@@ -47,15 +47,16 @@ class Chunk(BaseModel):
 class EvidenceSpan(BaseModel):
     """A citeable subrange selected from a retrieved Chunk; not persisted yet."""
 
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
     id: str = Field(min_length=1)
-    chunk_id: str = Field(min_length=1)
-    document_id: str = Field(min_length=1)
-    paper_id: str = Field(min_length=1)
-    page_number: int | None = Field(default=None, ge=1)
+    chunk_id: str = Field(min_length=1, alias="chunkId")
+    document_id: str = Field(min_length=1, alias="documentId")
+    paper_id: str = Field(min_length=1, alias="paperId")
+    page_number: int | None = Field(default=None, ge=1, alias="pageNumber")
     quote: str = Field(min_length=1)
-    start_offset: int | None = Field(default=None, ge=0)
-    end_offset: int | None = Field(default=None, ge=0)
-    source_text_hash: str = Field(min_length=1)
+    start_offset: int | None = Field(default=None, ge=0, alias="startOffset")
+    end_offset: int | None = Field(default=None, ge=0, alias="endOffset")
+    source_text_hash: str = Field(min_length=1, alias="sourceTextHash")
 
 
 class SearchResult(BaseModel):
