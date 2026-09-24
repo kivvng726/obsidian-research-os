@@ -29,3 +29,7 @@ python -m pytest
 ```
 
 `/health` reports availability. `/version` reports backend version `0.1.0` and API protocol version `1`.
+
+## PDF indexing API
+
+`POST /documents/index` accepts a runtime Vault root plus a Vault-relative PDF path. The backend only reads that PDF after path-containment validation; it never writes to the Vault. It stores rebuildable page-aware chunks in SQLite and currently provides no embeddings or retrieval.

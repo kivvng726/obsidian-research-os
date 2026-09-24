@@ -19,12 +19,12 @@ class BackendClient {
     this.request = options.request || requestUrl;
   }
 
-  async requestJson(method, path) {
+  async requestJson(method, path, body = null) {
     let timeoutId;
     const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => reject(new BackendClientError("BACKEND_TIMEOUT", `Backend request timed out after ${this.timeoutMs}ms`)), this.timeoutMs); });
     let response;
     try {
-      response = await Promise.race([this.request({ url: `${this.baseUrl}${path}`, method, throw: false }), timeout]);
+      response = await Promise.race([this.request({ url: `${this.baseUrl}${path}`, method, throw: false, ...(body === null ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }), timeout]);
     } catch (error) {
       if (error instanceof BackendClientError) throw error;
       throw new BackendClientError("BACKEND_UNAVAILABLE", "Local backend is unavailable", error);
@@ -32,9 +32,9 @@ class BackendClient {
       clearTimeout(timeoutId);
     }
     if (!response || Number(response.status) < 200 || Number(response.status) >= 300) throw new BackendClientError("BACKEND_API_ERROR", `Backend returned HTTP ${response?.status || "unknown"}`);
-    const body = response.json;
-    if (!body || typeof body !== "object" || Array.isArray(body)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend returned malformed JSON");
-    return body;
+    const responseBody = response.json;
+    if (!responseBody || typeof responseBody !== "object" || Array.isArray(responseBody)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend returned malformed JSON");
+    return responseBody;
   }
 
   async healthCheck() {
@@ -60,6 +60,14 @@ class BackendClient {
     } catch (error) {
       return { available: false, compatible: false, error: { code: error.code || "BACKEND_UNAVAILABLE", message: error.message } };
     }
+  }
+
+  async indexDocument(input) {
+    const body = await this.requestJson("POST", "/documents/index", input);
+    if (!body || !["indexed", "unchanged"].includes(body.status) || typeof body.documentId !== "string" || typeof body.chunkCount !== "number") {
+      throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend indexing response is invalid");
+    }
+    return body;
   }
 }
 

@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 
+from .indexing import IndexDocumentRequest, IndexDocumentResponse, IndexingError, index_pdf
+from .storage import RagStore
+
 BACKEND_VERSION = "0.1.0"
 API_VERSION = 1
 
@@ -14,3 +17,12 @@ def health() -> dict[str, str]:
 @app.get("/version")
 def version() -> dict[str, str | int]:
     return {"backendVersion": BACKEND_VERSION, "apiVersion": API_VERSION}
+
+
+@app.post("/documents/index", response_model=IndexDocumentResponse)
+def index_document(request: IndexDocumentRequest) -> IndexDocumentResponse:
+    try:
+        return index_pdf(request, RagStore())
+    except IndexingError as error:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=error.status_code, detail=error.message) from None

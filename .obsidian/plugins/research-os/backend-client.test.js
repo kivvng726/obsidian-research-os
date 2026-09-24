@@ -28,5 +28,13 @@ Module._load = originalLoad;
 
   const malformed = new BackendClient({ request: async () => ({ status: 200, json: "not an object" }) });
   await assert.rejects(() => malformed.getVersion(), error => error instanceof BackendClientError && error.code === "BACKEND_MALFORMED_RESPONSE");
+  let capturedRequest;
+  const indexing = new BackendClient({ request: async request => { capturedRequest = request; return { status: 200, json: { status: "indexed", documentId: "doc-1", chunkCount: 2 } }; } });
+  assert.equal((await indexing.indexDocument({ vaultRoot: "C:/Test", paperId: "paper-1", sourcePath: "09 Attachments/test.pdf" })).status, "indexed");
+  assert.equal(capturedRequest.method, "POST");
+  assert.equal(capturedRequest.url, "http://127.0.0.1:8765/documents/index");
+  assert.deepEqual(JSON.parse(capturedRequest.body), { vaultRoot: "C:/Test", paperId: "paper-1", sourcePath: "09 Attachments/test.pdf" });
+  const indexConflict = new BackendClient({ request: async () => ({ status: 409, json: {} }) });
+  await assert.rejects(() => indexConflict.indexDocument({}), error => error.code === "BACKEND_API_ERROR");
   console.log("backend client tests passed");
 })().catch(error => { console.error(error); process.exitCode = 1; });

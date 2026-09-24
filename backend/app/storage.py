@@ -152,3 +152,27 @@ class RagStore:
                      chunk.end_offset, chunk.chunk_index, chunk.content_hash, _timestamp(chunk.created_at), _timestamp(chunk.updated_at)),
                 )
         return self.list_chunks_by_document(document_id)
+
+    def replace_document(self, document: Document, chunks: list[Chunk]) -> list[Chunk]:
+        """Atomically update one Document and replace all of its derived chunks."""
+        if any(chunk.document_id != document.id or chunk.paper_id != document.paper_id for chunk in chunks):
+            raise ValueError("all chunks must belong to the document")
+        with self._connection() as connection:
+            connection.execute(
+                """INSERT INTO documents (id, paper_id, type, source_path, content_hash, parser_version, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET paper_id=excluded.paper_id, type=excluded.type,
+                source_path=excluded.source_path, content_hash=excluded.content_hash,
+                parser_version=excluded.parser_version, updated_at=excluded.updated_at""",
+                (document.id, document.paper_id, document.type, document.source_path, document.content_hash,
+                 document.parser_version, _timestamp(document.created_at), _timestamp(document.updated_at)),
+            )
+            connection.execute("DELETE FROM chunks WHERE document_id = ?", (document.id,))
+            for chunk in chunks:
+                connection.execute(
+                    """INSERT INTO chunks (id, document_id, paper_id, page_number, text, start_offset, end_offset, chunk_index, content_hash, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (chunk.id, chunk.document_id, chunk.paper_id, chunk.page_number, chunk.text, chunk.start_offset,
+                     chunk.end_offset, chunk.chunk_index, chunk.content_hash, _timestamp(chunk.created_at), _timestamp(chunk.updated_at)),
+                )
+        return self.list_chunks_by_document(document.id)
