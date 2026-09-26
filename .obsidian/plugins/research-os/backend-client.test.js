@@ -5,7 +5,7 @@ Module._load = function(request, parent, isMain) {
   if (request === "obsidian") return { requestUrl: async () => ({}) };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { BackendClient, BackendClientError, SUPPORTED_BACKEND_API_VERSION } = require("./backend-client");
+const { BackendClient, BackendClientError, SUPPORTED_BACKEND_API_VERSION, EMBEDDING_KEY_HEADER, LLM_KEY_HEADER } = require("./backend-client");
 Module._load = originalLoad;
 
 (async () => {
@@ -71,5 +71,42 @@ Module._load = originalLoad;
   await assert.rejects(() => unavailableRag.ragQuery({ query: "q" }), error => error.code === "LLM_NOT_CONFIGURED" && error.message.includes("not configured"));
   const slowRag = new BackendClient({ timeoutMs: 100, ragQueryTimeoutMs: 300, request: async () => new Promise(resolve => setTimeout(() => resolve({ status: 200, json: { answer: "no evidence", grounded: false, citations: [], invalidCitationIds: [], retrieval: {} } }), 150)) });
   assert.equal((await slowRag.ragQuery({ query: "q" })).grounded, false);
+  const runtimeSettings = {
+    backendUrl: "http://127.0.0.1:9999",
+    embedding: { provider: "qwen", baseUrl: "https://embedding.example/v1", apiKey: "TEST_EMBEDDING_KEY", model: "embed-test", dimensions: 1024 },
+    chat: { provider: "deepseek", baseUrl: "https://chat.example", apiKey: "TEST_CHAT_KEY", model: "deepseek-chat" }
+  };
+  let runtimeRequest;
+  const runtime = new BackendClient({ configGetter: () => runtimeSettings, request: async request => {
+    runtimeRequest = request;
+    if (request.url.endsWith("/providers/embedding/test")) return { status: 200, json: { ok: true, model: "embed-test", dimensions: 1024 } };
+    if (request.url.endsWith("/providers/chat/test")) return { status: 200, json: { ok: true, model: "deepseek-chat" } };
+    if (request.url.endsWith("/embeddings/index")) return { status: 200, json: { status: "completed", totalChunks: 1, cachedChunks: 1, embeddedChunks: 0 } };
+    if (request.url.endsWith("/search")) return { status: 200, json: { mode: "vector", query: "q", results: [] } };
+    return { status: 200, json: { query: "q", answer: "answer [E1]", grounded: true, citations: [{ id: "E1" }], invalidCitationIds: [], retrieval: { mode: "hybrid", resultCount: 1 } } };
+  } });
+  await runtime.ragQuery({ query: "q", searchMode: "hybrid" });
+  assert.equal(runtimeRequest.url, "http://127.0.0.1:9999/rag/query");
+  assert.equal(runtimeRequest.headers[EMBEDDING_KEY_HEADER], "TEST_EMBEDDING_KEY");
+  assert.equal(runtimeRequest.headers[LLM_KEY_HEADER], "TEST_CHAT_KEY");
+  assert.equal(runtimeRequest.url.includes("TEST_"), false);
+  const runtimeBody = JSON.parse(runtimeRequest.body);
+  assert.equal(runtimeBody.embedding.apiKey, undefined); assert.equal(runtimeBody.chat.apiKey, undefined);
+  assert.equal(runtimeBody.embedding.model, "embed-test"); assert.equal(runtimeBody.chat.model, "deepseek-chat");
+  await runtime.indexEmbeddings({ paperIds: ["paper-1"], force: false });
+  assert.equal(runtimeRequest.headers[EMBEDDING_KEY_HEADER], "TEST_EMBEDDING_KEY");
+  assert.equal(runtimeRequest.headers[LLM_KEY_HEADER], undefined);
+  assert.equal(JSON.parse(runtimeRequest.body).embedding.apiKey, undefined);
+  await runtime.searchChunks({ query: "q", mode: "vector" });
+  assert.equal(runtimeRequest.headers[EMBEDDING_KEY_HEADER], "TEST_EMBEDDING_KEY");
+  assert.equal(runtimeRequest.headers[LLM_KEY_HEADER], undefined);
+  await runtime.testEmbedding(); assert.equal(runtimeRequest.url, "http://127.0.0.1:9999/providers/embedding/test");
+  assert.equal(runtimeRequest.headers[EMBEDDING_KEY_HEADER], "TEST_EMBEDDING_KEY");
+  await runtime.testChat(); assert.equal(runtimeRequest.url, "http://127.0.0.1:9999/providers/chat/test");
+  assert.equal(runtimeRequest.headers[LLM_KEY_HEADER], "TEST_CHAT_KEY");
+  const keywordRuntime = new BackendClient({ configGetter: () => runtimeSettings, request: async request => { runtimeRequest = request; return { status: 200, json: { mode: "keyword", query: "q", results: [] } }; } });
+  await keywordRuntime.searchChunks({ query: "q", mode: "keyword" });
+  assert.equal(runtimeRequest.headers?.[EMBEDDING_KEY_HEADER], undefined);
+  assert.equal(runtimeRequest.headers?.[LLM_KEY_HEADER], undefined);
   console.log("backend client tests passed");
 })().catch(error => { console.error(error); process.exitCode = 1; });

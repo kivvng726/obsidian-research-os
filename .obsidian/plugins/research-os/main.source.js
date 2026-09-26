@@ -16,7 +16,7 @@ module.exports = class ResearchOSPlugin extends Plugin {
     this.theme = new ThemeService(this);
     this.taskManager = new TaskManager(this);
     this.store.taskManager = this.taskManager;
-    this.backendClient = new BackendClient();
+    this.backendClient = new BackendClient({ configGetter: () => this.ai?.settings?.researchAI || null });
     this.ragIndexService = new RagIndexService(this);
     this.store.ragIndexService = this.ragIndexService;
     this.addSettingTab(new ResearchAISettingTab(this.app, this));

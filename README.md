@@ -1,5 +1,13 @@
 # Research OS for Obsidian
 
+## Research AI Beta
+
+Research OS Engine runs locally. Configure its URL and your own embedding/chat API credentials in **Obsidian Settings → Research OS → Research AI / Library AI**. The plugin stores those credentials in its existing local plugin settings; it does not claim encryption or use a keychain in this release. The backend only receives credentials for the current localhost request and never persists them.
+
+Vault files remain local, but text required for remote AI features is sent to the AI providers you configure: chunk text to the embedding provider, and your question plus retrieved evidence to the chat provider. No local GPU is required; API costs belong to your provider account.
+
+Windows x64 beta users can run the local Engine by extracting `ResearchOS-Engine-Windows-x64.zip` from the official release and double-clicking `ResearchOS-Engine.exe`; no system Python or command line is required.
+
 Research OS 是一套运行在 Obsidian 内的个人论文研究工作台。它保留 Obsidian 原生文件、链接与编辑能力，在此基础上把论文导入、阅读材料、AI 分析、跨论文综合和视觉皮肤集中到一个更直观的界面中。
 
 > 当前为 `0.4.4` 开源预览版。请先在测试 Vault 中使用，并自行备份重要资料。

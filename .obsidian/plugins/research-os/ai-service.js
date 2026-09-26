@@ -1,6 +1,7 @@
 const { PluginSettingTab, Setting, Notice, requestUrl, TFile } = require("obsidian");
 const { renderThemeSettings } = require("./theme-settings");
 const { normalizePluginData } = require("./schema-migrations");
+const { renderResearchAISettings } = require("./research-ai-settings");
 
 const DEFAULT_AI_SETTINGS = {
   activeThemeId: "forest-original",
@@ -980,6 +981,7 @@ class ResearchAISettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("自动生成论文十问提炼").setDesc("导入论文后自动生成；已有论文会在后台补齐缺失提炼。").addToggle(toggle => toggle.setValue(this.plugin.ai.settings.autoInsightEnabled).onChange(async value => { this.plugin.ai.settings.autoInsightEnabled = value; await this.plugin.ai.save(); }));
     new Setting(containerEl).setName("每周推荐上限").addSlider(slider => slider.setLimits(3,20,1).setValue(this.plugin.ai.settings.weeklyLimit).setDynamicTooltip().onChange(async value => { this.plugin.ai.settings.weeklyLimit = value; await this.plugin.ai.save(); }));
     new Setting(containerEl).setName("关注主题").setDesc("使用英文逗号分隔").addTextArea(area => area.setValue(this.plugin.ai.settings.interests).onChange(async value => { this.plugin.ai.settings.interests = value; await this.plugin.ai.save(); }));
+    renderResearchAISettings(containerEl, this.plugin, () => this.display());
   }
 }
 
