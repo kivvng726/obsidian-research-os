@@ -1,12 +1,20 @@
 # Research OS local backend
 
-This is an optional localhost-only handshake service for Research OS. It does not read or write the Obsidian Vault, call AI providers, or implement RAG.
+## Research OS Engine — Windows x64 Beta
+
+For ordinary Windows users, download `ResearchOS-Engine-Windows-x64.zip` only from the project's official GitHub Release, extract it, and double-click `ResearchOS-Engine.exe`. Keep the console window open while using Research AI. Then open Obsidian, go to **Settings → Research OS**, use **Test Engine**, configure your own AI providers, prepare the library, and ask questions.
+
+This beta Engine is not code signed. Windows SmartScreen or Defender may identify it as an unknown publisher. Verify the downloaded archive with the release `SHA256SUMS.txt` and review the published source/build instructions. Do not download Engine binaries from unofficial mirrors.
+
+This is an optional localhost-only Engine for Research OS. It never writes the Obsidian Vault. When a user enables remote AI, it can send chunk text to the configured embedding provider and a question plus retrieved evidence to the configured chat provider.
 
 ## Derived storage
 
 `backend/.data/research-os.db` is rebuildable derived storage. The Obsidian Vault remains the source of truth. It stores indexed Documents, page-aware Chunks, SQLite FTS5 rows, and rebuildable embedding vectors; it never stores Vault binaries, Vault roots, or API keys.
 
 ## Development setup
+
+### Developer only
 
 Requires Python 3.11 or newer.
 
@@ -19,6 +27,18 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
 The service listens only on `127.0.0.1:8765`.
+
+### Windows package build — Developer only
+
+Build Windows x64 on Windows with Python 3.12 and the development dependencies installed:
+
+```powershell
+cd backend
+python -m pip install -e ".[dev]"
+..\scripts\build-engine-windows.ps1 -Python .\.venv\Scripts\python.exe
+```
+
+The build creates an onedir artifact at `backend/dist/ResearchOS-Engine/`, a release archive at `backend/release/ResearchOS-Engine-Windows-x64.zip`, and `SHA256SUMS.txt`. The build smoke test uses only a temporary synthetic PDF and does not call remote AI providers.
 
 ## Handshake endpoints
 

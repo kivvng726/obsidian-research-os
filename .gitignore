@@ -48,6 +48,9 @@ backend/.pytest_cache/
 backend/**/__pycache__/
 backend/**/*.pyc
 backend/.data/
+backend/build/
+backend/dist/
+backend/release/
 backend/*.egg-info/
 node_modules/
 

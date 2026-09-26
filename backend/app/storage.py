@@ -1,17 +1,16 @@
 """Small sqlite3 store for rebuildable Document and Chunk records."""
 
-import os
 import sqlite3
 from pathlib import Path
 
 from .models import Chunk, Document, SearchResult
+from .runtime_paths import get_db_path
 
 DB_SCHEMA_VERSION = 3
 
 
 def default_database_path() -> Path:
-    override = os.getenv("RESEARCH_OS_DB_PATH")
-    return Path(override) if override else Path(__file__).resolve().parent.parent / ".data" / "research-os.db"
+    return get_db_path()
 
 
 def get_connection(path: str | Path) -> sqlite3.Connection:

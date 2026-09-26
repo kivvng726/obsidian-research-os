@@ -1,7 +1,0 @@
-fastapi<1,>=0.115
-pymupdf<2,>=1.24
-uvicorn<1,>=0.30
-
-[dev]
-pytest<9,>=8
-httpx<1,>=0.27

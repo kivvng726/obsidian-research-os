@@ -11,9 +11,7 @@ from .indexing import IndexDocumentRequest, IndexDocumentResponse, IndexingError
 from .storage import RagStore
 from .retrieval import SearchRequest, SearchResponse, VectorIndexEmptyError, search_hybrid, search_keyword, search_vector
 from .rag import RagQueryRequest, RagQueryResponse, run_rag_query
-
-BACKEND_VERSION = "0.1.0"
-API_VERSION = 1
+from .version import API_VERSION, BACKEND_VERSION
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
