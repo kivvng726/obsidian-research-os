@@ -632,6 +632,31 @@
 .ros-ai-compose textarea:focus { border-color: rgba(174,204,141,.70); box-shadow: 0 0 0 3px rgba(103,127,72,.20); }
 .ros-ai-save { margin-top: 9px; }
 
+/* Grounded library QA: all colors inherit Research OS theme tokens. */
+.ros-library-rag { margin: 0 0 14px; padding: 18px; }
+.ros-library-rag .ros-ai-compose textarea { border-color: var(--ros-border-strong); background: var(--ros-panel-2); color: var(--ros-text); caret-color: var(--ros-green); }
+.ros-rag-index-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0 4px; color: var(--ros-text-3); font-size: 10px; }
+.research-os-host .ros-rag-index-status .ros-secondary-btn { border-color: var(--ros-border-strong) !important; background: var(--ros-panel-2) !important; color: var(--ros-text-2) !important; box-shadow: none !important; }
+.research-os-host .ros-rag-index-status .ros-secondary-btn:hover { border-color: var(--ros-border-strong) !important; background: var(--ros-panel-3) !important; color: var(--ros-text) !important; }
+.ros-rag-status { margin-top: 10px; color: var(--ros-text-3); font-size: 10px; line-height: 1.5; }
+.ros-rag-status.is-error { color: var(--ros-text-2); }
+.ros-rag-status.is-warning { color: var(--ros-text-2); }
+.ros-rag-answer { margin-top: 14px; color: var(--ros-text-2); font-size: 11px; line-height: 1.7; white-space: pre-wrap; }
+.ros-rag-answer :is(h1,h2,h3,h4,h5,h6) { margin: 1.1em 0 .45em; color: var(--ros-text); }
+.ros-rag-answer :is(p,ul,ol,pre,blockquote) { margin: .8em 0; }
+.ros-rag-answer :is(ul,ol) { padding-left: 1.6em; }
+.ros-rag-answer code { border: 1px solid var(--ros-border); border-radius: 4px; background: var(--ros-panel-2); color: var(--ros-text); }
+.ros-rag-answer pre { padding: 10px; overflow: auto; border: 1px solid var(--ros-border); border-radius: 8px; background: var(--ros-panel-2); }
+.research-os-host .ros-rag-citation { display: inline; min-height: 0; margin: 0 2px; padding: 0; border: 0 !important; appearance: none; background: transparent !important; box-shadow: none !important; color: var(--ros-green) !important; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.ros-rag-citation.is-invalid { color: var(--ros-text-3); cursor: default; text-decoration: none; }
+.ros-rag-sources { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ros-border); }
+.ros-rag-sources h3 { margin: 0 0 8px; color: var(--ros-text); font-size: 11px; }
+.ros-rag-source { padding: 10px 0; border-top: 1px solid var(--ros-border); }
+.research-os-host .ros-rag-source-open { display: flex; width: 100%; align-items: baseline; gap: 7px; padding: 8px 10px; border: 1px solid var(--ros-border) !important; border-radius: 8px; appearance: none; background: var(--ros-panel-2) !important; box-shadow: none !important; color: var(--ros-text-2) !important; text-align: left; cursor: pointer; }
+.research-os-host .ros-rag-source-open strong { color: var(--ros-green) !important; }
+.research-os-host .ros-rag-source-open:hover { border-color: var(--ros-border-strong) !important; background: var(--ros-panel-3) !important; color: var(--ros-text) !important; }
+.ros-rag-source p { margin: 6px 0 0; color: var(--ros-text-3); font-size: 10px; line-height: 1.55; white-space: pre-wrap; }
+
 @media (max-width: 700px) {
   .ros-ai-paper-foot { align-items: flex-start; flex-direction: column; }
   .ros-ai-actions { width: 100%; overflow-x: auto; }

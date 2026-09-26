@@ -120,7 +120,7 @@ def test_api_embedding_index_vector_and_hybrid_with_mock_provider(tmp_path, monk
     database = tmp_path / "api-vector.db"; store = RagStore(database); document = make_document(); chunk = make_chunk(document, 0, "multi agent credit assignment")
     store.replace_document(document, [chunk]); monkeypatch.setenv("RESEARCH_OS_DB_PATH", str(database))
     instance = provider({chunk.text: [1, 0, 0], "credit assignment": [1, 0, 0]})
-    monkeypatch.setattr(main_module, "embedding_provider", lambda: instance)
+    monkeypatch.setattr(main_module, "embedding_provider", lambda *_: instance)
     client = TestClient(app)
     indexed = client.post("/embeddings/index", json={"paperIds": ["paper-a"], "force": False})
     assert indexed.status_code == 200 and indexed.json()["embeddedChunks"] == 1

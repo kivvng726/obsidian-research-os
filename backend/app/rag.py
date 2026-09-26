@@ -6,8 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .chat import ChatProvider
-from .config import EmbeddingConfigurationError
+from .chat import ChatProvider, ChatRuntimeConfig
+from .config import EmbeddingConfigurationError, EmbeddingRuntimeConfig
 from .embeddings import EmbeddingProvider, EmbeddingProviderError
 from .identifiers import sha256_text
 from .models import EvidenceSpan, SearchResult
@@ -26,11 +26,19 @@ Never cite an evidence ID that was not supplied. Never invent page numbers, pape
 If the supplied evidence is insufficient, state that clearly. Do not use outside knowledge as if it came from the indexed library."""
 
 
+def answer_language_instruction(query: str) -> str:
+    if re.search(r"[\u4e00-\u9fff]", query):
+        return "Answer in Chinese because the Question is in Chinese. Keep Evidence quotations in their original language."
+    return "Answer in English because the Question is in English. Keep Evidence quotations in their original language."
+
+
 class RagQueryRequest(BaseModel):
     query: str
     paperIds: list[str] = Field(default_factory=list)
     retrievalTopK: int = Field(default=6, ge=1, le=12)
     searchMode: Literal["keyword", "vector", "hybrid"] = "hybrid"
+    embedding: EmbeddingRuntimeConfig | None = None
+    chat: ChatRuntimeConfig | None = None
 
     @field_validator("query")
     @classmethod
@@ -171,7 +179,7 @@ def run_rag_query(request: RagQueryRequest, store: RagStore,
     provider = chat_provider_factory()
     context = build_rag_context(evidence)
     answer = provider.complete([
-        {"role": "system", "content": GROUNDED_SYSTEM_PROMPT},
+        {"role": "system", "content": f"{GROUNDED_SYSTEM_PROMPT}\n{answer_language_instruction(request.query)}"},
         {"role": "user", "content": f"Question:\n{request.query}\n\nEvidence:\n\n{context}"},
     ])
     citations, invalid_ids, grounded = validate_citations(answer, evidence)

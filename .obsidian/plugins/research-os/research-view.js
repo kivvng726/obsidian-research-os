@@ -1,9 +1,11 @@
-const { ItemView, Notice, setIcon, TFile } = require("obsidian");
+const { ItemView, Notice, setIcon, TFile, MarkdownRenderer } = require("obsidian");
 const { CaptureModal } = require("./capture-modal");
 const { PaperGraph } = require("./paper-graph");
 const { ProgressModal, TYPES: PROGRESS_TYPES, MATURITY, ROLES: EVIDENCE_ROLES } = require("./progress-modal");
 const { SynthesisModal } = require("./synthesis-modal");
 const { LiteratureEditModal, LiteratureDeleteModal } = require("./literature-modal");
+const { tokenizeRagAnswer, quotePreview, prepareRagMarkdown, splitCitationPlaceholders } = require("./rag-ui");
+const { openCitation } = require("./citation-navigator");
 
 const VIEW_TYPE = "research-os-view";
 const STATUS = {
@@ -17,6 +19,16 @@ const STATUS = {
 function restoreSearchInputFocus(container, cursor) {
   const input = container?.querySelector?.(".ros-search input");
   if (!input) return;
+  input.focus?.();
+  if (typeof input.setSelectionRange !== "function") return;
+  const length = String(input.value || "").length;
+  const position = Math.max(0, Math.min(Number.isFinite(cursor) ? cursor : length, length));
+  input.setSelectionRange(position, position);
+}
+
+function restoreRagInputFocus(container, cursor) {
+  const input = container?.querySelector?.(".ros-library-rag textarea");
+  if (!input || input.disabled) return;
   input.focus?.();
   if (typeof input.setSelectionRange !== "function") return;
   const length = String(input.value || "").length;
@@ -38,6 +50,11 @@ class ResearchView extends ItemView {
     this.progressFilter = "all";
     this.progressSuggestions = [];
     this.libraryTopic = "all";
+    this.ragInput = "";
+    this.ragResult = null;
+    this.ragError = "";
+    this.ragLoading = false;
+    this.ragBackfillError = "";
   }
 
   getViewType() { return VIEW_TYPE; }
@@ -304,6 +321,7 @@ class ResearchView extends ItemView {
     const organizeIcon = organize.createSpan(); setIcon(organizeIcon, "sparkles");
     organize.createSpan({ text: "AI 重整文献库" });
     organize.addEventListener("click", () => this.organizeLibrary(organize));
+    this.renderLibraryRag(page);
     let items = this.literature();
     if (this.filter !== "all") items = items.filter(x => this.filter === "read" ? ["read","annotated"].includes(x.status) : x.status === this.filter);
     const groups = this.groupLiteratureByTopic(items);
@@ -324,6 +342,181 @@ class ResearchView extends ItemView {
     const visibleGroups = this.libraryTopic === "all" ? groups : groups.filter(group => group.topic === this.libraryTopic);
     if (!visibleGroups.length) return content.createDiv({ text: "没有符合条件的文献", cls: "ros-simple-empty ros-simple-card" });
     visibleGroups.forEach(group => this.renderLiteratureGroup(content, group));
+  }
+
+  renderLibraryRag(page) {
+    const panel = page.createEl("section", { cls: "ros-simple-card ros-library-rag" });
+    const head = panel.createDiv("ros-section-heading");
+    head.createEl("h2", { text: "Ask your library" });
+    head.createSpan({ text: "Answers use indexed library evidence" });
+
+    const indexService = this.plugin.ragIndexService;
+    const indexStatus = indexService?.getLibraryStatus(this.plugin.store.byType("literature"));
+    const indexBar = panel.createDiv("ros-rag-index-status");
+    if (!indexStatus) {
+      indexBar.createSpan({ text: "RAG index is unavailable." });
+    } else {
+      const completed = indexStatus.succeeded + indexStatus.unchanged;
+      const progress = indexStatus.backfill;
+      indexBar.createSpan({ text: progress?.running
+        ? `Preparing library: ${progress.processed} / ${progress.total} processed · ${progress.succeeded} indexed · ${progress.unchanged} unchanged · ${progress.failed} failed`
+        : `RAG library: ${completed} / ${indexStatus.total} papers prepared in this session` });
+      const prepare = indexBar.createEl("button", { text: progress?.running ? "Preparing library…" : "Index existing library", cls: "ros-secondary-btn" });
+      prepare.disabled = Boolean(progress?.running);
+      prepare.addEventListener("click", () => this.indexExistingLibrary());
+    }
+    if (this.ragBackfillError) panel.createDiv({ text: this.ragBackfillError, cls: "ros-rag-status is-error", attr: { role: "alert" } });
+
+    const compose = panel.createDiv("ros-ai-compose");
+    const input = compose.createEl("textarea", {
+      attr: { placeholder: "Ask a question about your indexed library…", rows: "3", "aria-label": "Ask your library" }
+    });
+    input.value = this.ragInput;
+    input.disabled = this.ragLoading;
+    input.addEventListener("input", event => { this.ragInput = event.target.value; });
+    const ask = compose.createEl("button", { text: this.ragLoading ? "Thinking…" : "Ask", cls: "ros-primary-btn" });
+    ask.disabled = this.ragLoading;
+    ask.addEventListener("click", () => this.submitLibraryRag(input.value));
+
+    if (this.ragLoading) panel.createDiv({ text: "Searching indexed evidence and preparing an answer…", cls: "ros-rag-status" });
+    if (this.ragError) panel.createDiv({ text: this.ragError, cls: "ros-rag-status is-error", attr: { role: "alert" } });
+    if (!this.ragResult) return;
+
+    const answer = panel.createDiv("ros-rag-answer");
+    void this.renderRagAnswer(answer, this.ragResult);
+    if (!this.ragResult.grounded || this.ragResult.invalidCitationIds.length) {
+      panel.createDiv({ text: "Some claims may not have validated source citations.", cls: "ros-rag-status is-warning" });
+    }
+    this.renderRagSources(panel, this.ragResult.citations);
+  }
+
+  async submitLibraryRag(value) {
+    const query = String(value || "").trim();
+    if (!query || this.ragLoading) return;
+    if (!this.plugin.backendClient?.ragQuery) {
+      this.ragError = "Local Research backend is not available.";
+      this.render();
+      return;
+    }
+    this.ragInput = query;
+    this.ragLoading = true;
+    this.ragError = "";
+    this.render();
+    try {
+      this.ragResult = await this.plugin.backendClient.ragQuery({
+        query,
+        paperIds: [],
+        retrievalTopK: 6,
+        searchMode: "hybrid"
+      });
+    } catch (error) {
+      this.ragResult = null;
+      this.ragError = error?.code === "BACKEND_TIMEOUT"
+        ? "RAG request timed out."
+        : error?.code === "BACKEND_UNAVAILABLE"
+          ? "Local Research backend is not available."
+          : error?.message || "Unable to answer from the indexed library.";
+    } finally {
+      this.ragLoading = false;
+      this.render();
+      restoreRagInputFocus(this.contentEl, this.ragInput.length);
+    }
+  }
+
+  async indexExistingLibrary() {
+    const service = this.plugin.ragIndexService;
+    if (!service) {
+      this.ragBackfillError = "Local Research backend is not available.";
+      this.render();
+      return;
+    }
+    this.ragBackfillError = "";
+    this.render();
+    const summary = await service.indexExistingLibrary(this.plugin.store.byType("literature"));
+    if (summary.unavailable) this.ragBackfillError = "Local Research backend is not available. Indexing stopped safely.";
+    else if (summary.failed) this.ragBackfillError = `${summary.failed} paper(s) could not be indexed. The remaining papers were processed.`;
+    this.render();
+  }
+
+  async renderRagAnswer(parent, result) {
+    const citations = Array.isArray(result?.citations) ? result.citations : [];
+    const prepared = prepareRagMarkdown(result?.answer, citations);
+    try {
+      await MarkdownRenderer.render(this.app, prepared.markdown, parent, this.selectedPath || "", this);
+      this.replaceRagCitationPlaceholders(parent, prepared.placeholders);
+    } catch (error) {
+      parent.empty?.();
+      this.renderRagAnswerFallback(parent, result?.answer, citations);
+    }
+  }
+
+  replaceRagCitationPlaceholders(parent, placeholders) {
+    const documentRef = parent?.ownerDocument || globalThis.document;
+    if (!documentRef?.createTreeWalker || !placeholders.size) return;
+    const textNodes = [];
+    const walker = documentRef.createTreeWalker(parent, 4);
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach(node => {
+      const parts = splitCitationPlaceholders(node.textContent, placeholders);
+      if (!parts.some(part => part.type === "citation")) return;
+      const fragment = documentRef.createDocumentFragment();
+      parts.forEach(part => {
+        if (part.type === "text") fragment.appendChild(documentRef.createTextNode(part.text));
+        else fragment.appendChild(this.createRagCitationButton(documentRef, part.citation));
+      });
+      node.parentNode?.replaceChild(fragment, node);
+    });
+  }
+
+  createRagCitationButton(documentRef, citation) {
+    const button = documentRef.createElement("button");
+    button.type = "button";
+    button.className = "ros-rag-citation";
+    button.textContent = `[${citation.id}]`;
+    button.setAttribute("aria-label", `Open source ${citation.id}`);
+    button.title = `Open source ${citation.id}`;
+    button.addEventListener("click", () => this.openRagCitation(citation));
+    return button;
+  }
+
+  renderRagAnswerFallback(parent, answer, citations) {
+    tokenizeRagAnswer(answer, citations).forEach(token => {
+      if (token.type === "text") parent.createSpan({ text: token.text });
+      else if (!token.citation) parent.createSpan({ text: token.text, cls: "ros-rag-citation is-invalid" });
+      else {
+        const button = parent.createEl("button", { text: token.text, cls: "ros-rag-citation", attr: { type: "button", "aria-label": `Open source ${token.id}`, title: `Open source ${token.id}` } });
+        button.addEventListener("click", () => this.openRagCitation(token.citation));
+      }
+    });
+  }
+
+  renderRagSources(parent, citations) {
+    const sources = parent.createEl("section", { cls: "ros-rag-sources", attr: { "aria-label": "Sources" } });
+    sources.createEl("h3", { text: "Sources" });
+    if (!citations.length) {
+      sources.createDiv({ text: "No library sources were returned for this answer.", cls: "ros-simple-empty" });
+      return;
+    }
+    citations.forEach(citation => {
+      const paper = this.plugin.store.get(citation.paperId);
+      const page = Number.isInteger(Number(citation.pageNumber)) && Number(citation.pageNumber) > 0 ? `p. ${citation.pageNumber}` : "page unavailable";
+      const row = sources.createEl("article", { cls: "ros-rag-source" });
+      const open = row.createEl("button", { cls: "ros-rag-source-open", attr: { type: "button", title: `Open ${citation.id}` } });
+      open.createEl("strong", { text: citation.id });
+      open.createSpan({ text: `${paper?.title || citation.paperId} · ${page}` });
+      open.addEventListener("click", () => this.openRagCitation(citation));
+      row.createEl("p", { text: quotePreview(citation.quote, 350) });
+    });
+  }
+
+  async openRagCitation(citation) {
+    try {
+      const result = await openCitation({ app: this.app, store: this.plugin.store, citation });
+      if (!result.opened) return new Notice("Citation source is no longer available.");
+      if (result.pageNumber) new Notice(`Opened PDF. Open page ${result.pageNumber}.`);
+    } catch (error) {
+      new Notice("Citation source is no longer available.");
+    }
   }
 
   groupLiteratureByTopic(items) {
@@ -871,4 +1064,4 @@ class ResearchView extends ItemView {
   }
 }
 
-module.exports = { ResearchView, VIEW_TYPE, restoreSearchInputFocus };
+module.exports = { ResearchView, VIEW_TYPE, restoreSearchInputFocus, restoreRagInputFocus };

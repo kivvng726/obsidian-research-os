@@ -40,15 +40,21 @@ python -m pytest
 
 ## Embeddings and hybrid retrieval
 
-`POST /embeddings/index` explicitly creates missing chunk vectors. It does not run during PDF import or ordinary keyword search. The development provider is OpenAI-compatible and defaults to `qwen3.7-text-embedding-flash`, 1024 dimensions, and batches of 16. Set `RESEARCH_OS_EMBEDDING_API_KEY` only in the process environment; optional overrides are `RESEARCH_OS_EMBEDDING_BASE_URL`, `RESEARCH_OS_EMBEDDING_MODEL`, `RESEARCH_OS_EMBEDDING_DIMENSIONS`, and `RESEARCH_OS_EMBEDDING_BATCH_SIZE`.
+`POST /embeddings/index` explicitly creates missing chunk vectors. It does not run during PDF import or ordinary keyword search. The provider is OpenAI-compatible and defaults to `qwen3.7-text-embedding-flash`, 1024 dimensions, and batches of 16. In normal plugin use, credentials and provider configuration arrive only with the current localhost request. `RESEARCH_OS_EMBEDDING_API_KEY` plus optional environment overrides remain a developer fallback.
 
 There is no local embedding model or vector database; vectors come from the configured remote provider and remain a rebuildable local cache.
+
+## Research AI Beta
+
+For ordinary plugin use, configure the local Engine URL plus embedding and chat providers in **Obsidian Settings → Research OS → Research AI / Library AI**. The plugin passes credentials only for the current localhost request; the backend never persists them. Environment variables remain a developer-only fallback.
+
+The Engine runs locally and no local GPU is required. Your Vault files remain local, but text required for AI features is sent to the AI providers you configure: chunk text for embeddings, and your question plus retrieved evidence for grounded RAG answers. API costs belong to your chosen provider account.
 
 ## Grounded RAG
 
 `POST /rag/query` reuses the existing keyword, vector, or hybrid retrieval path and assigns temporary evidence IDs `E1...En` in retrieval order. The chat model may cite only those IDs. Citation metadata, including paper, page, offsets, quote, and source-text hash, is created and validated by the backend from retrieval results, never supplied by the model.
 
-Configure the optional OpenAI-compatible chat provider independently with `RESEARCH_OS_LLM_API_KEY`, `RESEARCH_OS_LLM_BASE_URL`, and `RESEARCH_OS_LLM_MODEL`. The key is runtime-only and is not persisted. If no relevant evidence is found, the backend does not call the chat provider.
+Configure the optional OpenAI-compatible chat provider independently in the plugin's Research AI settings. `RESEARCH_OS_LLM_API_KEY`, `RESEARCH_OS_LLM_BASE_URL`, and `RESEARCH_OS_LLM_MODEL` remain a developer fallback. The key is runtime-only and is not persisted by the backend. If no relevant evidence is found, the backend does not call the chat provider.
 
 `grounded: true` means only that the response contains at least one valid evidence marker and no invalid evidence IDs. It does not prove that every statement is factually correct or fully supported. There is currently no reranker, Obsidian RAG UI, citation click-to-PDF behavior, or Agent.
 

@@ -9,13 +9,15 @@ from urllib.request import Request, urlopen
 import numpy as np
 from pydantic import BaseModel, Field
 
-from .config import EmbeddingSettings
+from .config import EmbeddingRuntimeConfig, EmbeddingSettings
 from .models import Chunk
 from .storage import RagStore
 
 
 class EmbeddingProviderError(Exception):
-    pass
+    def __init__(self, code: str = "EMBEDDING_PROVIDER_UNAVAILABLE", message: str | None = None):
+        self.code = code
+        super().__init__(message or code)
 
 
 class EmbeddingProvider:
@@ -35,12 +37,14 @@ class OpenAICompatibleEmbeddingProvider(EmbeddingProvider):
             with urlopen(request, timeout=self.settings.timeout_seconds) as response:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
-            kind = "authentication" if error.code in (401, 403) else "rate limit" if error.code == 429 else "provider"
-            raise EmbeddingProviderError(f"Embedding {kind} error ({error.code})") from None
+            if error.code in (401, 403): raise EmbeddingProviderError("EMBEDDING_CREDENTIAL_INVALID", "Embedding credential is invalid") from None
+            if error.code == 429: raise EmbeddingProviderError("EMBEDDING_RATE_LIMITED", "Embedding provider rate limited") from None
+            if error.code in (400, 404): raise EmbeddingProviderError("EMBEDDING_MODEL_CONFIG_INVALID", "Embedding model or configuration is invalid") from None
+            raise EmbeddingProviderError("EMBEDDING_PROVIDER_UNAVAILABLE", "Embedding provider is unavailable") from None
         except (URLError, TimeoutError):
-            raise EmbeddingProviderError("Embedding provider is unavailable") from None
+            raise EmbeddingProviderError("EMBEDDING_PROVIDER_UNAVAILABLE", "Embedding provider is unavailable") from None
         except json.JSONDecodeError:
-            raise EmbeddingProviderError("Embedding provider returned malformed JSON") from None
+            raise EmbeddingProviderError("EMBEDDING_PROVIDER_UNAVAILABLE", "Embedding provider returned malformed JSON") from None
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         output: list[list[float]] = []
@@ -82,6 +86,7 @@ class EmbeddingIndexStats:
 class EmbeddingIndexRequest(BaseModel):
     paperIds: list[str] = Field(default_factory=list)
     force: bool = False
+    embedding: EmbeddingRuntimeConfig | None = None
 
 
 class EmbeddingIndexResponse(BaseModel):

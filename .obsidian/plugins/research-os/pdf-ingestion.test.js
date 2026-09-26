@@ -57,6 +57,8 @@ function source(name = "Paper.pdf", bytes = new Uint8Array([37, 80, 68, 70]).buf
 
 (async () => {
   const normal = fixture();
+  const ragIndexed = [];
+  normal.store.ragIndexService = { indexPaperInBackground: paper => { ragIndexed.push(paper); return Promise.resolve(); } };
   const stages = [];
   const originalProgress = normal.store.taskManager.updateProgress.bind(normal.store.taskManager);
   normal.store.taskManager.updateProgress = async (id, progress, stage) => { stages.push([stage, progress]); return originalProgress(id, progress, stage); };
@@ -69,6 +71,14 @@ function source(name = "Paper.pdf", bytes = new Uint8Array([37, 80, 68, 70]).buf
   assert.equal(completed.payload.targetPdfPath, first.attachmentPath);
   assert.equal(completed.payload.paperPath, first.note.path);
   assert.equal(normal.store.get(first.note.path).type, "literature");
+  assert.equal(ragIndexed.length, 1);
+  assert.equal(ragIndexed[0].id, first.note.path);
+  assert.equal(ragIndexed[0].pdfPath, first.attachmentPath);
+
+  const backendOffline = fixture();
+  backendOffline.store.ragIndexService = { indexPaperInBackground: () => Promise.reject(new Error("backend offline")) };
+  const importedWithOfflineBackend = await backendOffline.store.importPdf(source("Offline.pdf"));
+  assert.ok(importedWithOfflineBackend.note.path);
   assert.equal(normal.store.getIngestionDebugState(completed.id).targetPdfPath, first.attachmentPath);
   assert.equal(Object.values(completed.payload).some(value => value instanceof ArrayBuffer), false);
 

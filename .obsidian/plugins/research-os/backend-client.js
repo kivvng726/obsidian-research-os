@@ -4,7 +4,9 @@ const DEFAULT_BACKEND_URL = "http://127.0.0.1:8765";
 const SUPPORTED_BACKEND_API_VERSION = 1;
 const DEFAULT_REQUEST_TIMEOUT_MS = 2000;
 const DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS = 15000;
+const DEFAULT_DOCUMENT_INDEX_TIMEOUT_MS = 60000;
 const DEFAULT_EMBEDDING_INDEX_TIMEOUT_MS = 60000;
+const DEFAULT_RAG_QUERY_TIMEOUT_MS = 60000;
 
 class BackendClientError extends Error {
   constructor(code, message, cause = null) {
@@ -20,7 +22,9 @@ class BackendClient {
     this.baseUrl = String(options.baseUrl || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
     this.timeoutMs = Math.max(100, Number(options.timeoutMs) || DEFAULT_REQUEST_TIMEOUT_MS);
     this.semanticSearchTimeoutMs = Math.max(this.timeoutMs, Number(options.semanticSearchTimeoutMs) || DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS);
+    this.documentIndexTimeoutMs = Math.max(this.timeoutMs, Number(options.documentIndexTimeoutMs) || DEFAULT_DOCUMENT_INDEX_TIMEOUT_MS);
     this.embeddingIndexTimeoutMs = Math.max(this.timeoutMs, Number(options.embeddingIndexTimeoutMs) || DEFAULT_EMBEDDING_INDEX_TIMEOUT_MS);
+    this.ragQueryTimeoutMs = Math.max(this.timeoutMs, Number(options.ragQueryTimeoutMs) || DEFAULT_RAG_QUERY_TIMEOUT_MS);
     this.request = options.request || requestUrl;
   }
 
@@ -37,7 +41,12 @@ class BackendClient {
     } finally {
       clearTimeout(timeoutId);
     }
-    if (!response || Number(response.status) < 200 || Number(response.status) >= 300) throw new BackendClientError("BACKEND_API_ERROR", `Backend returned HTTP ${response?.status || "unknown"}`);
+    if (!response || Number(response.status) < 200 || Number(response.status) >= 300) {
+      const detail = response?.json?.detail;
+      const code = typeof detail?.code === "string" ? detail.code : "BACKEND_API_ERROR";
+      const message = typeof detail?.message === "string" ? detail.message : `Backend returned HTTP ${response?.status || "unknown"}`;
+      throw new BackendClientError(code, message);
+    }
     const responseBody = response.json;
     if (!responseBody || typeof responseBody !== "object" || Array.isArray(responseBody)) throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend returned malformed JSON");
     return responseBody;
@@ -69,7 +78,7 @@ class BackendClient {
   }
 
   async indexDocument(input) {
-    const body = await this.requestJson("POST", "/documents/index", input);
+    const body = await this.requestJson("POST", "/documents/index", input, { timeoutMs: this.documentIndexTimeoutMs });
     if (!body || !["indexed", "unchanged"].includes(body.status) || typeof body.documentId !== "string" || typeof body.chunkCount !== "number") {
       throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend indexing response is invalid");
     }
@@ -87,6 +96,14 @@ class BackendClient {
     const body = await this.requestJson("POST", "/embeddings/index", input, { timeoutMs: this.embeddingIndexTimeoutMs });
     if (!body || !["completed", "partial"].includes(body.status) || typeof body.totalChunks !== "number" || typeof body.cachedChunks !== "number" || typeof body.embeddedChunks !== "number") {
       throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend embedding indexing response is invalid");
+    }
+    return body;
+  }
+
+  async ragQuery(input) {
+    const body = await this.requestJson("POST", "/rag/query", input, { timeoutMs: this.ragQueryTimeoutMs });
+    if (!body || typeof body.answer !== "string" || typeof body.grounded !== "boolean" || !Array.isArray(body.citations) || !Array.isArray(body.invalidCitationIds) || !body.retrieval || typeof body.retrieval !== "object") {
+      throw new BackendClientError("BACKEND_MALFORMED_RESPONSE", "Backend RAG response is invalid");
     }
     return body;
   }

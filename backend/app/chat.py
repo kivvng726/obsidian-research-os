@@ -7,6 +7,8 @@ from typing import Callable, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from pydantic import BaseModel
+
 
 class ChatConfigurationError(Exception):
     """The optional RAG chat provider is not configured."""
@@ -25,6 +27,12 @@ class ChatProviderError(Exception):
         super().__init__(message)
 
 
+class ChatRuntimeConfig(BaseModel):
+    provider: str | None = None
+    baseUrl: str | None = None
+    model: str | None = None
+
+
 @dataclass(frozen=True)
 class ChatSettings:
     api_key: str
@@ -34,10 +42,11 @@ class ChatSettings:
     max_tokens: int = 1600
 
     @classmethod
-    def from_env(cls) -> "ChatSettings":
-        api_key = os.getenv("RESEARCH_OS_LLM_API_KEY", "").strip()
-        base_url = os.getenv("RESEARCH_OS_LLM_BASE_URL", "").strip().rstrip("/")
-        model = os.getenv("RESEARCH_OS_LLM_MODEL", "").strip()
+    def from_runtime(cls, runtime: ChatRuntimeConfig | None = None, api_key: str | None = None) -> "ChatSettings":
+        runtime = runtime or ChatRuntimeConfig()
+        api_key = (api_key or os.getenv("RESEARCH_OS_LLM_API_KEY", "")).strip()
+        base_url = (runtime.baseUrl or os.getenv("RESEARCH_OS_LLM_BASE_URL", "")).strip().rstrip("/")
+        model = (runtime.model or os.getenv("RESEARCH_OS_LLM_MODEL", "")).strip()
         if not api_key or not base_url or not model:
             raise ChatConfigurationError("RAG chat provider is not configured")
         try:
@@ -49,6 +58,10 @@ class ChatSettings:
             raise ChatConfigurationError("RAG chat configuration has an invalid value")
         return cls(api_key=api_key, base_url=base_url, model=model,
                    timeout_seconds=timeout_seconds, max_tokens=max_tokens)
+
+    @classmethod
+    def from_env(cls) -> "ChatSettings":
+        return cls.from_runtime()
 
 
 class ChatProvider(Protocol):
@@ -79,6 +92,8 @@ class OpenAICompatibleChatProvider:
                 raise ChatProviderError("LLM_AUTH_ERROR", "Chat provider authentication failed") from None
             if error.code == 429:
                 raise ChatProviderError("LLM_RATE_LIMITED", "Chat provider rate limit reached") from None
+            if error.code in (400, 404):
+                raise ChatProviderError("LLM_MODEL_CONFIG_INVALID", "Chat provider model or configuration is invalid") from None
             raise ChatProviderError("LLM_PROVIDER_ERROR", f"Chat provider error ({error.code})") from None
         except (URLError, TimeoutError):
             raise ChatProviderError("LLM_PROVIDER_UNAVAILABLE", "Chat provider is unavailable") from None

@@ -5,6 +5,7 @@ const { AIService, ResearchAISettingTab } = require("./ai-service");
 const { ThemeService } = require("./theme-service");
 const { TaskManager } = require("./task-manager");
 const { BackendClient } = require("./backend-client");
+const { RagIndexService } = require("./rag-index-service");
 
 const VIEW_TYPE = "research-os-view";
 
@@ -16,6 +17,8 @@ module.exports = class ResearchOSPlugin extends Plugin {
     this.taskManager = new TaskManager(this);
     this.store.taskManager = this.taskManager;
     this.backendClient = new BackendClient();
+    this.ragIndexService = new RagIndexService(this);
+    this.store.ragIndexService = this.ragIndexService;
     this.addSettingTab(new ResearchAISettingTab(this.app, this));
     this.registerView(VIEW_TYPE, leaf => new ResearchView(leaf, this));
 

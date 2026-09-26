@@ -9,7 +9,7 @@ from app.identifiers import chunk_id, document_id, sha256_text
 from app.main import app
 from app.models import Chunk, Document, SearchResult
 from app.rag import (MAX_CONTEXT_CHARS, NO_EVIDENCE_ANSWER, RagQueryRequest, build_evidence_spans,
-                     build_rag_context, extract_citation_ids, run_rag_query, validate_citations)
+                     answer_language_instruction, build_rag_context, extract_citation_ids, run_rag_query, validate_citations)
 from app.storage import RagStore
 
 
@@ -66,6 +66,18 @@ def test_citation_parser_and_validator() -> None:
     assert validate_citations("Only invalid [E999]", evidence)[2] is False
 
 
+def test_answer_language_contract_uses_question_language(tmp_path) -> None:
+    assert "Chinese" in answer_language_instruction("这篇论文是什么？")
+    assert "English" in answer_language_instruction("What does this paper do?")
+    store = RagStore(tmp_path / "language.db"); doc = document(); store.replace_document(doc, [chunk(doc, 0, "language evidence 这篇论文")])
+    chinese_chat = FakeChat("中文回答 [E1]")
+    run_rag_query(RagQueryRequest(query="这篇论文", searchMode="keyword"), store, lambda: None, lambda: chinese_chat)
+    assert "Answer in Chinese" in chinese_chat.calls[0][0]["content"]
+    english_chat = FakeChat("English answer [E1]")
+    run_rag_query(RagQueryRequest(query="language evidence", searchMode="keyword"), store, lambda: None, lambda: english_chat)
+    assert "Answer in English" in english_chat.calls[0][0]["content"]
+
+
 def test_no_evidence_never_constructs_chat_provider(tmp_path) -> None:
     calls = {"chat": 0}
     def chat_factory():
@@ -108,16 +120,16 @@ def test_hybrid_falls_back_to_keyword_and_provider_failure_preserves_storage(tmp
 def test_rag_api_success_no_evidence_and_config_error(tmp_path, monkeypatch) -> None:
     database = tmp_path / "api.db"; store = RagStore(database); doc = document(); item = chunk(doc, 0, "api grounded evidence")
     store.replace_document(doc, [item]); monkeypatch.setenv("RESEARCH_OS_DB_PATH", str(database))
-    monkeypatch.setattr(main_module, "chat_provider", lambda: FakeChat("API answer [E1]."))
+    monkeypatch.setattr(main_module, "chat_provider", lambda *_: FakeChat("API answer [E1]."))
     client = TestClient(app)
     response = client.post("/rag/query", json={"query": "api grounded", "paperIds": ["paper-1"], "retrievalTopK": 6, "searchMode": "keyword"})
     assert response.status_code == 200 and response.json()["grounded"] is True and response.json()["citations"][0]["pageNumber"] == 1
     no_evidence = client.post("/rag/query", json={"query": "zzzxxyy", "searchMode": "keyword"})
     assert no_evidence.status_code == 200 and no_evidence.json()["model"] is None
-    monkeypatch.setattr(main_module, "chat_provider", lambda: (_ for _ in ()).throw(ChatConfigurationError("missing")))
+    monkeypatch.setattr(main_module, "chat_provider", lambda *_: (_ for _ in ()).throw(ChatConfigurationError("missing")))
     not_configured = client.post("/rag/query", json={"query": "api grounded", "searchMode": "keyword"})
     assert not_configured.status_code == 503 and not_configured.json()["detail"]["code"] == "LLM_NOT_CONFIGURED"
-    monkeypatch.setattr(main_module, "chat_provider", lambda: (_ for _ in ()).throw(ChatProviderError("private remote detail")))
+    monkeypatch.setattr(main_module, "chat_provider", lambda *_: (_ for _ in ()).throw(ChatProviderError("private remote detail")))
     provider_error = client.post("/rag/query", json={"query": "api grounded", "searchMode": "keyword"})
     assert provider_error.status_code == 503 and provider_error.json()["detail"]["code"] == "LLM_PROVIDER_ERROR"
     assert client.post("/rag/query", json={"query": ""}).status_code == 422
@@ -131,8 +143,8 @@ def test_rag_api_vector_and_hybrid_modes(tmp_path, monkeypatch) -> None:
                                            dimensions=3, batch_size=1, timeout_seconds=1)
     embedding = OpenAICompatibleEmbeddingProvider(embedding_settings,
                                                    transport=lambda _: {"data": [{"index": 0, "embedding": [1, 0, 0]}]})
-    monkeypatch.setattr(main_module, "embedding_provider", lambda: embedding)
-    monkeypatch.setattr(main_module, "chat_provider", lambda: FakeChat("Semantic answer [E1]."))
+    monkeypatch.setattr(main_module, "embedding_provider", lambda *_: embedding)
+    monkeypatch.setattr(main_module, "chat_provider", lambda *_: FakeChat("Semantic answer [E1]."))
     client = TestClient(app)
     vector = client.post("/rag/query", json={"query": "semantic", "searchMode": "vector"})
     hybrid = client.post("/rag/query", json={"query": "semantic", "searchMode": "hybrid"})

@@ -720,6 +720,12 @@ reading_progress: 0` : "";
       if (!indexedPaper) throw new Error("Imported paper could not be indexed");
 
       await this.taskManager?.completeTask(taskId, { targetPdfPath: attachmentPath, paperPath: note.path, reusedAttachment: Boolean(reusedAttachmentPath), reusedPaper: Boolean(existingPaper) });
+      // Derived RAG indexing is optional and must never change PDF import success semantics.
+      try {
+        Promise.resolve(this.ragIndexService?.indexPaperInBackground(indexedPaper)).catch(error => console.warn("Research OS background RAG indexing skipped", error));
+      } catch (error) {
+        console.warn("Research OS background RAG indexing skipped", error);
+      }
       return { note, attachmentPath, metadata };
     } catch (error) {
       await this.taskManager?.updateTask(taskId, { payload: context });

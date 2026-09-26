@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from .config import EmbeddingRuntimeConfig
 from .embeddings import EmbeddingProvider, EmbeddingProviderError
 from .models import SearchResult
 from .storage import RagStore
@@ -21,6 +22,7 @@ class SearchRequest(BaseModel):
     topK: int = Field(default=10, ge=1, le=50)
     paperIds: list[str] = Field(default_factory=list)
     mode: Literal["keyword", "vector", "hybrid"] = "keyword"
+    embedding: EmbeddingRuntimeConfig | None = None
 
     @field_validator("query")
     @classmethod
