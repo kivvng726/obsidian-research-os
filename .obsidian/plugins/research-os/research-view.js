@@ -513,7 +513,8 @@ class ResearchView extends ItemView {
     try {
       const result = await openCitation({ app: this.app, store: this.plugin.store, citation });
       if (!result.opened) return new Notice("Citation source is no longer available.");
-      if (result.pageNumber) new Notice(`Opened PDF. Open page ${result.pageNumber}.`);
+      if (result.pageNavigated) new Notice(`Opened citation source · p.${result.pageNumber}`);
+      else if (result.pageNumber) new Notice(`Opened PDF, but could not jump to page ${result.pageNumber}.`);
     } catch (error) {
       new Notice("Citation source is no longer available.");
     }
